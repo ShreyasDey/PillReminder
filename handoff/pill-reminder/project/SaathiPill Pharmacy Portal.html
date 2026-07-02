@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SaathiPill — Pharmacy Partner Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="pharmacy-bridge.js"></script>
+<script type="text/babel" src="portal-data.jsx"></script>
+<script type="text/babel" src="portal-shared.jsx"></script>
+<script type="text/babel" src="portal-screens.jsx"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; min-height: 100vh; background: #FAF8F4; font-family: 'Inter', -apple-system, sans-serif; }
+  body { color: #1B2538; -webkit-font-smoothing: antialiased; }
+  button { font-family: inherit; }
+  input, textarea, select { font-family: inherit; }
+  a { color: inherit; text-decoration: none; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #FAF8F4; }
+  ::-webkit-scrollbar-thumb { background: #D6D0C4; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #B8B0A0; }
+  @keyframes pulseDot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  @keyframes modalIn { from { transform: translateY(20px) scale(0.96); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+  @keyframes backdropIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes toastIn { from { transform: translate(-50%, 20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback } = React;
+
+// ── Sidebar ──
+const NAV_ITEMS = [
+  { id: 'dashboard', label: 'Dashboard', icon: '◫', shortcut: 'D' },
+  { id: 'patients', label: 'Patients', icon: '◉', shortcut: 'P', badge: 247 },
+  { id: 'refills', label: 'Refill queue', icon: '℞', shortcut: 'R', badge: 12, badgeColor: 'red' },
+  { id: 'inventory', label: 'Inventory', icon: '⊟', shortcut: 'I', badge: 2, badgeColor: 'amber' },
+  { id: 'offers', label: 'Offers & promotions', icon: '🏷', shortcut: 'O' },
+  { id: 'analytics', label: 'Revenue & analytics', icon: '◑', shortcut: 'A' },
+  { id: 'partners', label: 'Pharmacy codes', icon: '⊕', shortcut: 'C' },
+];
+
+function Sidebar({ active, onNavigate }) {
+  const [pharmacyCode, setPharmacyCode] = React.useState(() => localStorage.getItem('sp_pharmacy_code') || 'SHRM-74219');
+  const [editingCode, setEditingCode] = React.useState(false);
+  const [codeInput, setCodeInput] = React.useState('');
+  const [copied, setCopied] = React.useState(false);
+  const codeRef = React.useRef(null);
+
+  // Sync from localStorage when it changes (e.g. saved from Profile or Partners page)
+  React.useEffect(() => {
+    const stored = localStorage.getItem('sp_pharmacy_code');
+    if (stored && stored !== pharmacyCode) setPharmacyCode(stored);
+  }, [active]);
+
+  const startEdit = () => {
+    setCodeInput(pharmacyCode);
+    setEditingCode(true);
+    setTimeout(() => codeRef.current?.select(), 30);
+  };
+
+  const formatCode = (raw) => {
+    let clean = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (clean.length > 9) clean = clean.slice(0, 9);
+    return clean.length > 4 ? clean.slice(0, 4) + '-' + clean.slice(4) : clean;
+  };
+
+  const isInputValid = /^[A-Z0-9]{4}-[A-Z0-9]{5}$/.test(codeInput);
+
+  const saveCode = () => {
+    if (!isInputValid) return;
+    setPharmacyCode(codeInput);
+    localStorage.setItem('sp_pharmacy_code', codeInput);
+    setEditingCode(false);
+  };
+
+  const copyCode = () => {
+    navigator.clipboard?.writeText(pharmacyCode);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1800);
+  };
+
+  return (
+    <aside style={{
+      width: 240,
+      background: C.navyDeep,
+      color: 'rgba(255,255,255,0.85)',
+      display: 'flex', flexDirection: 'column',
+      borderRight: '1px solid rgba(0,0,0,0.2)',
+      flexShrink: 0,
+    }}>
+      {/* Logo */}
+      <div style={{ padding: '20px 18px 22px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 8,
+            background: C.coral, color: '#fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontWeight: 800, fontSize: 18, letterSpacing: '-0.02em',
+          }}>S</div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>SaathiPill</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Pharmacy Portal</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Pharmacy selector + code */}
+      <div style={{ padding: '14px 14px 0' }}>
+        <div style={{
+          padding: '10px 12px', borderRadius: 6,
+          background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)',
+          color: '#fff',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700 }}>Sharma Medical Store</div>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 500, marginTop: 1 }}>Andheri West, Mumbai</div>
+            </div>
+            <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', cursor: 'pointer' }}>▾</span>
+          </div>
+          <div style={{
+            marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)',
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.08em', marginBottom: 6 }}>PHARMACY CODE</div>
+
+            {editingCode ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <input
+                  ref={codeRef}
+                  value={codeInput}
+                  onChange={e => setCodeInput(formatCode(e.target.value))}
+                  onKeyDown={e => { if (e.key === 'Enter') saveCode(); if (e.key === 'Escape') setEditingCode(false); }}
+                  maxLength={10}
+                  placeholder="XXXX-XXXXX"
+                  spellCheck={false}
+                  style={{
+                    width: '100%', padding: '7px 10px',
+                    background: 'rgba(255,255,255,0.1)',
+                    border: `1px solid ${isInputValid ? 'rgba(91,123,95,0.8)' : 'rgba(217,119,87,0.7)'}`,
+                    borderRadius: 5, color: '#fff', outline: 'none',
+                    fontFamily: fonts.mono, fontSize: 13, fontWeight: 700,
+                    letterSpacing: '0.1em',
+                  }}
+                />
+                {codeInput.length > 0 && !isInputValid && (
+                  <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.5)', lineHeight: 1.4 }}>
+                    Format: XXXX-XXXXX (9 alphanumeric)
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 5 }}>
+                  <button onClick={saveCode} disabled={!isInputValid} style={{
+                    flex: 1, padding: '6px 0', border: 'none', borderRadius: 4,
+                    background: isInputValid ? C.coral : 'rgba(255,255,255,0.1)',
+                    color: isInputValid ? '#fff' : 'rgba(255,255,255,0.3)',
+                    cursor: isInputValid ? 'pointer' : 'not-allowed',
+                    fontFamily: fonts.body, fontSize: 11, fontWeight: 700,
+                  }}>Save</button>
+                  <button onClick={() => setEditingCode(false)} style={{
+                    flex: 1, padding: '6px 0', borderRadius: 4,
+                    border: '1px solid rgba(255,255,255,0.15)', background: 'transparent',
+                    color: 'rgba(255,255,255,0.6)', cursor: 'pointer',
+                    fontFamily: fonts.body, fontSize: 11, fontWeight: 700,
+                  }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: C.coral, fontFamily: fonts.mono, letterSpacing: '0.08em' }}>
+                  {pharmacyCode}
+                </div>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <button onClick={startEdit} title="Edit code" style={{
+                    padding: '4px 8px', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4,
+                    background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.55)',
+                    cursor: 'pointer', fontFamily: fonts.body, fontSize: 10, fontWeight: 700,
+                  }}>✎</button>
+                  <button onClick={copyCode} title="Copy code" style={{
+                    padding: '4px 8px', border: '1px solid rgba(217,119,87,0.5)', borderRadius: 4,
+                    background: 'rgba(217,119,87,0.15)', color: C.coral, cursor: 'pointer',
+                    fontFamily: fonts.body, fontSize: 10, fontWeight: 700, letterSpacing: '0.04em',
+                    transition: 'all 0.15s',
+                  }}>{copied ? '✓' : 'COPY'}</button>
+                </div>
+              </div>
+            )}
+          </div>
+          <div style={{ marginTop: 6, fontSize: 10, color: 'rgba(255,255,255,0.4)', lineHeight: 1.4 }}>
+            Share with patients to auto-link in the SaathiPill app
+          </div>
+        </div>
+      </div>
+
+      {/* Nav items */}
+      <nav style={{ padding: '16px 8px', flex: 1 }}>
+        {NAV_ITEMS.map(item => {
+          const isActive = active === item.id || (item.id === 'patients' && active === 'patient-detail');
+          return (
+            <button
+              key={item.id}
+              onClick={() => onNavigate(item.id)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 12px', marginBottom: 2,
+                background: isActive ? C.coral : 'transparent',
+                color: isActive ? '#fff' : 'rgba(255,255,255,0.75)',
+                border: 'none', borderRadius: 6,
+                cursor: 'pointer',
+                fontSize: 13, fontWeight: isActive ? 700 : 600,
+                textAlign: 'left',
+                transition: 'background 0.12s, color 0.12s',
+              }}
+              onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
+              onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+            >
+              <span style={{
+                width: 22, textAlign: 'center', fontSize: 16,
+                color: isActive ? '#fff' : 'rgba(255,255,255,0.65)',
+              }}>{item.icon}</span>
+              <span style={{ flex: 1 }}>{item.label}</span>
+              {item.badge != null && (
+                <span style={{
+                  padding: '1px 7px', borderRadius: 10,
+                  background: item.badgeColor === 'red' ? C.red : item.badgeColor === 'amber' ? C.amber : (isActive ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.12)'),
+                  color: item.badgeColor === 'amber' ? '#3D2A06' : '#fff',
+                  fontSize: 10, fontWeight: 800, letterSpacing: '0.02em',
+                }}>{item.badge}</span>
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div style={{ padding: '12px 18px 18px', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+          <span>Help & support</span>
+          <span style={{ fontWeight: 700 }}>?</span>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <span>Settings</span>
+          <span style={{ fontWeight: 700 }}>⚙</span>
+        </div>
+        <div style={{ marginTop: 12, fontSize: 10, opacity: 0.6 }}>v2.4.1 · est. 1998</div>
+      </div>
+    </aside>
+  );
+}
+
+// ── Top bar ──
+function TopBar({ onNotificationsClick, onNavigate }) {
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+  const inputRef = React.useRef(null);
+  const activeOffer = readActiveOffer();
+  const notifCount = 3 + (activeOffer ? 1 : 0);
+
+  const results = React.useMemo(() => {
+    if (!q.trim()) return null;
+    const term = q.toLowerCase();
+    const patients = PATIENTS.filter(p =>
+      p.name.toLowerCase().includes(term) ||
+      p.conditions.some(c => c.toLowerCase().includes(term)) ||
+      p.phone.replace(/\s/g, '').includes(term.replace(/\s/g, ''))
+    ).slice(0, 6);
+    const orders = REFILLS.filter(r =>
+      r.id.toLowerCase().includes(term) ||
+      r.name.toLowerCase().includes(term)
+    ).slice(0, 4);
+    const meds = INVENTORY.filter(i => i.name.toLowerCase().includes(term)).slice(0, 4);
+    return { patients, orders, meds, total: patients.length + orders.length + meds.length };
+  }, [q]);
+
+  React.useEffect(() => {
+    const handler = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+      if (e.key === 'Escape') { setOpen(false); inputRef.current?.blur(); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  const go = (target, data) => {
+    onNavigate(target, data);
+    setQ('');
+    setOpen(false);
+    inputRef.current?.blur();
+  };
+
+  return (
+    <header style={{
+      height: 60, background: C.white,
+      borderBottom: `1px solid ${C.border}`,
+      display: 'flex', alignItems: 'center',
+      padding: '0 24px',
+      flexShrink: 0,
+      gap: 16,
+    }}>
+      {/* Quick search */}
+      <div style={{ position: 'relative' }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '0 14px', height: 36,
+          border: `1px solid ${open ? C.navy : C.border}`, borderRadius: 6,
+          background: C.cream, width: 360,
+        }}>
+          <span style={{ color: C.textMuted }}>⌕</span>
+          <input
+            ref={inputRef}
+            value={q}
+            onChange={e => { setQ(e.target.value); setOpen(true); }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setTimeout(() => setOpen(false), 200)}
+            placeholder="Search patients, orders, medicines…"
+            style={{
+              flex: 1, border: 'none', background: 'transparent', outline: 'none',
+              fontFamily: fonts.body, fontSize: 13, color: C.text,
+            }}
+          />
+          {q ? (
+            <button onMouseDown={e => { e.preventDefault(); setQ(''); }} style={{ border: 'none', background: 'none', cursor: 'pointer', color: C.textMuted, fontSize: 14 }}>✕</button>
+          ) : (
+            <span style={{
+              padding: '2px 6px', border: `1px solid ${C.border}`, borderRadius: 3,
+              fontSize: 10, color: C.textMid, fontWeight: 700, background: C.white,
+            }}>⌘K</span>
+          )}
+        </div>
+
+        {open && results && (
+          <div style={{
+            position: 'absolute', top: 42, left: 0, width: 460,
+            background: C.white, border: `1px solid ${C.border}`, borderRadius: 8,
+            boxShadow: '0 16px 40px rgba(15,27,45,0.15)',
+            maxHeight: 460, overflowY: 'auto', zIndex: 95,
+          }}>
+            {results.total === 0 && (
+              <div style={{ padding: 24, textAlign: 'center', color: C.textMuted, fontSize: 13 }}>
+                No matches for "{q}"
+              </div>
+            )}
+            {results.patients.length > 0 && (
+              <SearchGroup label="Patients" count={results.patients.length}>
+                {results.patients.map(p => (
+                  <button key={p.id} onMouseDown={e => { e.preventDefault(); go('patient-detail', p.id); }} style={searchRow}>
+                    <Avatar patient={p} size={30} />
+                    <div style={{ flex: 1, textAlign: 'left' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{p.name}</div>
+                      <div style={{ fontSize: 11, color: C.textMid, fontWeight: 500 }}>{p.age} yrs · {p.conditions.join(', ')}</div>
+                    </div>
+                    <span style={{ fontSize: 11, color: C.textMuted, fontWeight: 600 }}>{p.phone}</span>
+                  </button>
+                ))}
+              </SearchGroup>
+            )}
+            {results.orders.length > 0 && (
+              <SearchGroup label="Refill orders" count={results.orders.length}>
+                {results.orders.map(o => (
+                  <button key={o.id} onMouseDown={e => { e.preventDefault(); go('refills'); }} style={searchRow}>
+                    <div style={{ width: 30, height: 30, borderRadius: 4, background: C.creamWarm, color: C.navy, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800 }}>℞</div>
+                    <div style={{ flex: 1, textAlign: 'left' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>#{o.id} · {o.name}</div>
+                      <div style={{ fontSize: 11, color: C.textMid, fontWeight: 500 }}>{o.placedTime} · {o.status}</div>
+                    </div>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: C.navy }}>{inr(o.amount)}</span>
+                  </button>
+                ))}
+              </SearchGroup>
+            )}
+            {results.meds.length > 0 && (
+              <SearchGroup label="Medicines" count={results.meds.length}>
+                {results.meds.map(m => (
+                  <button key={m.name} onMouseDown={e => { e.preventDefault(); go('inventory'); }} style={searchRow}>
+                    <div style={{ width: 30, height: 30, borderRadius: 4, background: C.coralSoft, color: C.coral, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800 }}>⊟</div>
+                    <div style={{ flex: 1, textAlign: 'left' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{m.name}</div>
+                      <div style={{ fontSize: 11, color: C.textMid, fontWeight: 500 }}>{m.supplier} · {m.stock} in stock</div>
+                    </div>
+                  </button>
+                ))}
+              </SearchGroup>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div style={{ flex: 1 }} />
+
+      {/* Status pill */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        padding: '5px 10px', borderRadius: 14,
+        background: C.sageSoft, color: C.sage,
+        fontSize: 12, fontWeight: 700,
+      }}>
+        <span style={{ width: 7, height: 7, borderRadius: '50%', background: C.sage, animation: 'pulseDot 1.6s ease-in-out infinite' }} />
+        Synced · 1 min ago
+      </div>
+
+      {/* Notifications */}
+      <button onClick={onNotificationsClick} style={{
+        position: 'relative', width: 36, height: 36, borderRadius: 6,
+        background: C.cream, border: `1px solid ${C.border}`,
+        cursor: 'pointer', fontSize: 16, color: C.text,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        🔔
+        <span style={{
+          position: 'absolute', top: -4, right: -4,
+          minWidth: 18, height: 18, borderRadius: 9,
+          background: C.red, color: '#fff',
+          fontSize: 10, fontWeight: 800,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '0 5px', border: '2px solid #fff',
+        }}>{notifCount}</span>
+      </button>
+
+      {/* Profile */}
+      <button onClick={() => onNavigate('profile')} style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '4px 10px 4px 4px', borderRadius: 8,
+        border: `1px solid ${C.border}`,
+        background: C.white, cursor: 'pointer',
+        fontFamily: fonts.body,
+      }}>
+        <div style={{
+          width: 30, height: 30, borderRadius: 15,
+          background: C.navy, color: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 12, fontWeight: 800,
+        }}>RS</div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.text }}>Dr. Rajesh Sharma</div>
+          <div style={{ fontSize: 10, color: C.textMid, fontWeight: 600 }}>Owner · Pharmacist</div>
+        </div>
+        <span style={{ color: C.textMid, fontSize: 10, marginLeft: 4 }}>▾</span>
+      </button>
+    </header>
+  );
+}
+
+// ── Modals ──
+function Modal({ open, onClose, title, subtitle, children, width = 520 }) {
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose(); };
+    if (open) document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open, onClose]);
+  if (!open) return null;
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 100,
+      background: 'rgba(15, 27, 45, 0.45)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      animation: 'backdropIn 0.18s ease-out',
+      padding: 20,
+    }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width, maxWidth: '100%', maxHeight: '90vh',
+        background: C.white, borderRadius: 10,
+        border: `1px solid ${C.border}`,
+        animation: 'modalIn 0.22s cubic-bezier(0.4, 0, 0.2, 1)',
+        display: 'flex', flexDirection: 'column',
+        boxShadow: '0 24px 48px rgba(15,27,45,0.18)',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          padding: '18px 22px',
+          borderBottom: `1px solid ${C.border}`,
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+        }}>
+          <div>
+            <h2 style={{ fontSize: 17, fontWeight: 800, color: C.navy, margin: 0, letterSpacing: '-0.01em' }}>{title}</h2>
+            {subtitle && <div style={{ fontSize: 12, color: C.textMid, marginTop: 4, fontWeight: 500 }}>{subtitle}</div>}
+          </div>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            color: C.textMuted, fontSize: 18, padding: 4,
+          }}>✕</button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto' }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function SmsModal({ patient, onClose, onSend }) {
+  const templates = [
+    'Reminder: refill due',
+    'Adherence check-in',
+    'Order ready for pickup',
+    'New refill confirmed',
+    'Custom message',
+  ];
+  const [template, setTemplate] = useState(0);
+  const [message, setMessage] = useState(
+    `Namaste ${patient?.name?.split(' ')[0] || 'Sir/Madam'} ji,\n\nYour refill is due in 2 days. Should I prepare it for pickup or home delivery?\n\nRegards,\nSharma Medical Store`
+  );
+  return (
+    <Modal open={!!patient} onClose={onClose} title={`SMS · ${patient?.name || ''}`} subtitle={patient?.phone} width={560}>
+      <div style={{ padding: 22 }}>
+        <div style={{ marginBottom: 14 }}>
+          <Label>Template</Label>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
+            {templates.map((t, i) => (
+              <button key={t} onClick={() => setTemplate(i)} style={{
+                padding: '6px 10px', borderRadius: 4,
+                border: `1px solid ${template === i ? C.navy : C.border}`,
+                background: template === i ? C.navy : C.white,
+                color: template === i ? '#fff' : C.text,
+                fontFamily: fonts.body, fontSize: 12, fontWeight: 600,
+                cursor: 'pointer',
+              }}>{t}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <Label>Message</Label>
+          <textarea value={message} onChange={e => setMessage(e.target.value)} style={{
+            width: '100%', minHeight: 140, padding: 12, marginTop: 6,
+            border: `1px solid ${C.border}`, borderRadius: 6,
+            fontFamily: fonts.body, fontSize: 13, color: C.text,
+            resize: 'vertical', outline: 'none', lineHeight: 1.5,
+          }} />
+        </div>
+        <div style={{
+          marginTop: 14, padding: 12, background: C.creamWarm, borderRadius: 6,
+          fontSize: 11, color: C.textMid, fontWeight: 500, lineHeight: 1.5,
+        }}>
+          <strong style={{ color: C.text }}>Sent via:</strong> SaathiPill SMS gateway ({patient?.phone}) · Delivery receipt will be logged in patient timeline.
+        </div>
+      </div>
+      <div style={{ padding: '14px 22px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end', gap: 8, background: C.cream }}>
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="success" onClick={onSend} icon={<span>✉</span>}>Send SMS</Button>
+      </div>
+    </Modal>
+  );
+}
+
+function DeclineModal({ patient, onClose, onConfirm }) {
+  const reasons = [
+    'Out of stock — supplier shortage',
+    'Prescription needs renewal',
+    'Patient address unverifiable',
+    'Outside delivery area',
+    'Other',
+  ];
+  const [reason, setReason] = useState(0);
+  return (
+    <Modal open={!!patient} onClose={onClose} title={`Decline refill · ${patient?.name || ''}`} subtitle="Patient will be notified with the reason">
+      <div style={{ padding: 22 }}>
+        <Label>Reason for declining</Label>
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {reasons.map((r, i) => (
+            <label key={r} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', borderRadius: 6,
+              border: `1px solid ${reason === i ? C.navy : C.border}`,
+              background: reason === i ? C.navySoft : C.white,
+              cursor: 'pointer',
+            }}>
+              <input type="radio" checked={reason === i} onChange={() => setReason(i)} />
+              <span style={{ fontSize: 13, color: C.text, fontWeight: 600 }}>{r}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+      <div style={{ padding: '14px 22px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end', gap: 8, background: C.cream }}>
+        <Button variant="ghost" onClick={onClose}>Cancel</Button>
+        <Button variant="danger" onClick={onConfirm}>Decline order</Button>
+      </div>
+    </Modal>
+  );
+}
+
+function GenericModal({ kind, patient, onClose }) {
+  if (!patient) return null;
+  const titles = {
+    refill: { title: 'Prepare refill', subtitle: `Build a new order for ${patient.name}` },
+    prescription: { title: 'Prescription on file', subtitle: `${patient.name} · uploaded ${patient.since}` },
+    call: { title: `Call ${patient.name}`, subtitle: patient.phone },
+  };
+  const t = titles[kind] || { title: 'Action', subtitle: '' };
+  return (
+    <Modal open={true} onClose={onClose} title={t.title} subtitle={t.subtitle}>
+      <div style={{ padding: 28, textAlign: 'center' }}>
+        {kind === 'call' && (
+          <>
+            <div style={{ fontSize: 60, marginBottom: 12 }}>📞</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: C.navy, marginBottom: 6 }}>{patient.phone}</div>
+            <div style={{ fontSize: 13, color: C.textMid, marginBottom: 18 }}>Click to call from your registered desk phone</div>
+            <Button variant="success" size="lg" onClick={onClose}>Start call</Button>
+          </>
+        )}
+        {kind === 'refill' && (
+          <>
+            <div style={{ fontSize: 60, marginBottom: 12 }}>℞</div>
+            <div style={{ fontSize: 14, color: C.text, marginBottom: 16, lineHeight: 1.6 }}>
+              Build a refill order using {patient.name}'s active prescription.<br />
+              All {patient.medCount} medicines will be pre-filled with default quantities.
+            </div>
+            <Button variant="coral" size="lg" onClick={onClose}>Build order</Button>
+          </>
+        )}
+        {kind === 'prescription' && (
+          <>
+            <div style={{ fontSize: 13, color: C.textMid, marginBottom: 16, padding: '12px 16px', background: C.cream, borderRadius: 6 }}>
+              <strong style={{ color: C.text }}>Prescribed by:</strong> Dr. Anand Mehta, Lilavati Hospital<br />
+              <strong style={{ color: C.text }}>Valid until:</strong> 14 Aug 2026<br />
+              <strong style={{ color: C.text }}>Conditions:</strong> {patient.conditions.join(', ')}
+            </div>
+            <div style={{
+              border: `2px dashed ${C.border}`, borderRadius: 8, padding: 40,
+              fontSize: 12, color: C.textMuted, fontWeight: 600,
+              background: C.cream,
+            }}>
+              [ Prescription scan preview — PDF, 2 pages ]
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <Button variant="primary" size="lg" onClick={onClose}>Open full prescription</Button>
+            </div>
+          </>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+// ── Prescribe-to-app modal ──
+// Lets the pharmacist build a prescription and push it straight into the
+// patient's SaathiPill app, where it appears in their daily reminders.
+const TIME_SLOTS = [
+  { id: 'morning', label: 'Morning', icon: '☀️' },
+  { id: 'afternoon', label: 'Afternoon', icon: '🌤️' },
+  { id: 'evening', label: 'Evening', icon: '🌆' },
+  { id: 'night', label: 'Night', icon: '🌙' },
+];
+const MEAL_OPTS = [
+  { id: 'after', label: 'After meal' },
+  { id: 'before', label: 'Before meal' },
+  { id: 'empty', label: 'Empty stomach' },
+  { id: 'bedtime', label: 'At bedtime' },
+];
+
+const rxInput = {
+  width: '100%', height: 38, padding: '0 12px',
+  border: `1px solid ${C.border}`, borderRadius: 6, background: C.white,
+  fontFamily: fonts.body, fontSize: 14, fontWeight: 600, color: C.text, outline: 'none',
+};
+const rxFieldLabel = {
+  fontSize: 10, fontWeight: 700, color: C.textMid,
+  letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 5,
+};
+
+function blankRx() {
+  return { drug: '', dose: '1 tablet', times: ['morning'], customTimes: [], meal: 'after', durationType: 'ongoing', courseDays: 7, instructions: '' };
+}
+
+function PrescribeRxRow({ med, idx, canRemove, onChange, onRemove }) {
+  const set = (patch) => onChange(idx, patch);
+  const toggleTime = (t) => set({ times: med.times.includes(t) ? med.times.filter(x => x !== t) : [...med.times, t] });
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [ph, setPh] = useState(8);
+  const [pm, setPm] = useState(0);
+  const [pap, setPap] = useState('AM');
+
+  const fmt = (h, m, ap) => `${h}:${String(m).padStart(2, '0')} ${ap}`;
+  const customTimes = med.customTimes || [];
+  const addCustom = () => {
+    const time = fmt(ph, pm, pap);
+    if (customTimes.some(c => c.time === time)) { setPickerOpen(false); return; }
+    const id = `custom-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    set({ customTimes: [...customTimes, { id, time }], times: [...med.times, id] });
+    setPickerOpen(false);
+  };
+  const removeCustom = (id) => set({
+    customTimes: customTimes.filter(c => c.id !== id),
+    times: med.times.filter(t => t !== id),
+  });
+
+  const perDay = med.times.length;
+
+  return (
+    <div style={{
+      border: `1px solid ${C.border}`, borderRadius: 8, padding: '14px 16px',
+      background: C.white, display: 'flex', flexDirection: 'column', gap: 12,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{
+          width: 26, height: 26, borderRadius: 5, background: C.coralSoft, color: C.coral,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, flexShrink: 0,
+        }}>℞{idx + 1}</div>
+        <div style={{ flex: 1 }}>
+          <div style={rxFieldLabel}>Medicine name</div>
+          <input list="rx-med-list" value={med.drug} onChange={e => set({ drug: e.target.value })}
+            placeholder="e.g. Metformin 500mg" spellCheck={false} style={rxInput} autoFocus={idx === 0 && !med.drug} />
+        </div>
+        <div style={{ width: 120 }}>
+          <div style={rxFieldLabel}>Dosage</div>
+          <input value={med.dose} onChange={e => set({ dose: e.target.value })} placeholder="1 tablet" style={rxInput} />
+        </div>
+        {canRemove && (
+          <button onClick={() => onRemove(idx)} title="Remove medicine" style={{
+            alignSelf: 'flex-end', width: 38, height: 38, borderRadius: 6,
+            border: `1px solid ${C.border}`, background: C.cream, color: C.textMuted,
+            cursor: 'pointer', fontSize: 16, flexShrink: 0,
+          }}>✕</button>
+        )}
+      </div>
+
+      <div>
+        <div style={{ ...rxFieldLabel, display: 'flex', justifyContent: 'space-between' }}>
+          <span>When to take</span>
+          <span style={{ color: perDay > 0 ? C.coral : C.textMuted, letterSpacing: 0 }}>
+            {perDay} {perDay === 1 ? 'time' : 'times'} / day
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {TIME_SLOTS.map(t => {
+            const on = med.times.includes(t.id);
+            return (
+              <button key={t.id} onClick={() => toggleTime(t.id)} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '7px 12px', borderRadius: 6,
+                border: `1px solid ${on ? C.navy : C.border}`,
+                background: on ? C.navy : C.white, color: on ? '#fff' : C.text,
+                fontFamily: fonts.body, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              }}>
+                <span>{t.icon}</span>{t.label}
+              </button>
+            );
+          })}
+
+          {/* Custom clock-time chips (always active once added) */}
+          {customTimes.map(c => (
+            <span key={c.id} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              padding: '7px 8px 7px 12px', borderRadius: 6,
+              border: `1px solid ${C.coral}`, background: C.coralSoft, color: C.coral,
+              fontFamily: fonts.body, fontSize: 12, fontWeight: 700,
+            }}>
+              <span>🕐 {c.time}</span>
+              <button onClick={() => removeCustom(c.id)} title="Remove time" style={{
+                border: 'none', background: 'rgba(217,119,87,0.18)', color: C.coral,
+                width: 18, height: 18, borderRadius: 4, cursor: 'pointer', fontSize: 11, lineHeight: 1,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              }}>✕</button>
+            </span>
+          ))}
+
+          <button onClick={() => setPickerOpen(o => !o)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '7px 12px', borderRadius: 6,
+            border: `1px dashed ${pickerOpen ? C.coral : C.border}`,
+            background: pickerOpen ? C.coralSoft : 'transparent',
+            color: pickerOpen ? C.coral : C.textMid,
+            fontFamily: fonts.body, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+          }}>
+            <span style={{ fontSize: 14, lineHeight: 1 }}>＋</span> Custom time
+          </button>
+        </div>
+
+        {/* Inline time picker */}
+        {pickerOpen && (
+          <div style={{
+            marginTop: 10, padding: '12px 14px', borderRadius: 8,
+            background: C.cream, border: `1px solid ${C.border}`,
+            display: 'flex', alignItems: 'flex-end', gap: 10, flexWrap: 'wrap',
+          }}>
+            <div>
+              <div style={rxFieldLabel}>Hour</div>
+              <select value={ph} onChange={e => setPh(+e.target.value)} style={{ ...rxInput, width: 72, cursor: 'pointer' }}>
+                {Array.from({ length: 12 }, (_, i) => i + 1).map(h => <option key={h} value={h}>{h}</option>)}
+              </select>
+            </div>
+            <div style={{ paddingBottom: 8, fontWeight: 800, color: C.textMid }}>:</div>
+            <div>
+              <div style={rxFieldLabel}>Minute</div>
+              <select value={pm} onChange={e => setPm(+e.target.value)} style={{ ...rxInput, width: 78, cursor: 'pointer' }}>
+                {Array.from({ length: 12 }, (_, i) => i * 5).map(m => <option key={m} value={m}>{String(m).padStart(2, '0')}</option>)}
+              </select>
+            </div>
+            <div>
+              <div style={rxFieldLabel}>AM / PM</div>
+              <div style={{ display: 'flex', gap: 0, border: `1px solid ${C.border}`, borderRadius: 6, overflow: 'hidden' }}>
+                {['AM', 'PM'].map(ap => (
+                  <button key={ap} onClick={() => setPap(ap)} style={{
+                    padding: '0 14px', height: 38, border: 'none', cursor: 'pointer',
+                    background: pap === ap ? C.navy : C.white, color: pap === ap ? '#fff' : C.text,
+                    fontFamily: fonts.body, fontSize: 13, fontWeight: 700,
+                  }}>{ap}</button>
+                ))}
+              </div>
+            </div>
+            <Button variant="coral" size="md" onClick={addCustom} icon={<span>＋</span>}>
+              Add {fmt(ph, pm, pap)}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 200px' }}>
+          <div style={rxFieldLabel}>Food relation</div>
+          <select value={med.meal} onChange={e => set({ meal: e.target.value })} style={{ ...rxInput, cursor: 'pointer' }}>
+            {MEAL_OPTS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </select>
+        </div>
+        <div style={{ flex: '1 1 200px' }}>
+          <div style={rxFieldLabel}>Duration</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select value={med.durationType} onChange={e => set({ durationType: e.target.value })} style={{ ...rxInput, cursor: 'pointer', flex: 1 }}>
+              <option value="ongoing">Ongoing</option>
+              <option value="fixed">Fixed course</option>
+            </select>
+            {med.durationType === 'fixed' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                <input type="number" min={1} value={med.courseDays}
+                  onChange={e => set({ courseDays: parseInt(e.target.value) || 1 })}
+                  style={{ ...rxInput, width: 64, textAlign: 'center', fontWeight: 800, color: C.navy }} />
+                <span style={{ fontSize: 12, color: C.textMid, fontWeight: 600 }}>days</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div style={rxFieldLabel}>Note for patient (optional)</div>
+        <input value={med.instructions} onChange={e => set({ instructions: e.target.value })}
+          placeholder="e.g. Take with plenty of water" style={rxInput} />
+      </div>
+    </div>
+  );
+}
+
+function PrescribeModal({ patient, onClose, onSent }) {
+  const [meds, setMeds] = useState([blankRx()]);
+  const pharmacyCode = (typeof localStorage !== 'undefined' && localStorage.getItem('sp_pharmacy_code')) || 'SHRM-74219';
+  const pharmacyName = 'Sharma Medical Store';
+
+  const changeRow = (i, patch) => setMeds(prev => prev.map((m, idx) => idx === i ? { ...m, ...patch } : m));
+  const removeRow = (i) => setMeds(prev => prev.filter((_, idx) => idx !== i));
+  const addRow = () => setMeds(prev => [...prev, blankRx()]);
+
+  const valid = meds.filter(m => m.drug.trim() && m.times.length > 0);
+  const canSend = valid.length > 0;
+
+  const send = () => {
+    if (!canSend) return;
+    PharmacyBridge.add({
+      pharmacyName,
+      pharmacyCode,
+      patientName: patient.name,
+      note: `Prescribed by Dr. Rajesh Sharma`,
+      meds: valid.map(m => {
+        const customMap = {};
+        (m.customTimes || []).forEach(c => { if (m.times.includes(c.id)) customMap[c.id] = c.time; });
+        return {
+          drug: m.drug.trim(),
+          dose: m.dose.trim() || '1 tablet',
+          times: m.times,
+          customTimesMap: Object.keys(customMap).length ? customMap : null,
+          meal: m.meal,
+          schedule: 'daily',
+          courseType: m.durationType,
+          courseDays: m.durationType === 'fixed' ? m.courseDays : null,
+          instructions: m.instructions.trim() || null,
+        };
+      }),
+    });
+    onSent(valid.length);
+  };
+
+  return (
+    <Modal open={!!patient} onClose={onClose}
+      title={`Add medicine to ${patient.name}'s app`}
+      subtitle="Pushes straight into their SaathiPill reminders — they're notified instantly"
+      width={620}>
+      <datalist id="rx-med-list">
+        {INVENTORY.map(i => <option key={i.name} value={i.name} />)}
+      </datalist>
+
+      <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Route banner */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          padding: '12px 14px', borderRadius: 8,
+          background: C.coralSoft, border: `1px solid ${C.coral}`,
+        }}>
+          <Avatar patient={patient} size={36} />
+          <div style={{ flex: 1, fontSize: 12, color: C.text, lineHeight: 1.5 }}>
+            Routing to <strong>{patient.name}</strong> · linked via <span style={{ fontFamily: fonts.mono, fontWeight: 800, color: C.coral }}>{pharmacyCode}</span>
+          </div>
+          <span style={{ fontSize: 18 }}>📲</span>
+        </div>
+
+        {meds.map((m, i) => (
+          <PrescribeRxRow key={i} med={m} idx={i} canRemove={meds.length > 1}
+            onChange={changeRow} onRemove={removeRow} />
+        ))}
+
+        <button onClick={addRow} style={{
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          padding: '10px 14px', border: `1px dashed ${C.border}`, borderRadius: 8,
+          background: 'transparent', cursor: 'pointer',
+          fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: C.textMid,
+        }}>
+          <span style={{ fontSize: 16, color: C.coral, lineHeight: 1 }}>+</span>
+          Add another medicine
+        </button>
+      </div>
+
+      <div style={{ padding: '14px 22px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, background: C.cream }}>
+        <span style={{ fontSize: 12, color: C.textMid, fontWeight: 600 }}>
+          {canSend ? `${valid.length} medicine${valid.length > 1 ? 's' : ''} ready to send` : 'Enter a medicine name & at least one time'}
+        </span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="coral" disabled={!canSend} onClick={send} icon={<span>📲</span>}>
+            Send to patient's app
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Walk-in counter sale ("New refill") ──
+// A registered patient comes to the shop without ordering in the app. The
+// pharmacist records what's handed over; portal stock drops and the patient
+// sees it as a pickup in their app.
+function NewRefillModal({ onClose, onDone }) {
+  const [patientId, setPatientId] = useState('');
+  const [items, setItems] = useState([{ name: '', qty: 30 }]);
+  const [adjust, setAdjust] = useState(() => PharmacyBridge.readInventoryAdjust());
+  const activeOffer = readActiveOffer();
+  const pharmacyCode = (typeof localStorage !== 'undefined' && localStorage.getItem('sp_pharmacy_code')) || 'SHRM-74219';
+  const pharmacyName = 'Sharma Medical Store';
+
+  const patient = PATIENTS.find(p => p.id === +patientId);
+  const invByName = (n) => INVENTORY.find(i => i.name === n);
+  const mrpOf = (n) => invByName(n)?.mrp || 0;
+  const availOf = (n) => { const base = invByName(n); return base ? base.stock + (adjust[n] || 0) : null; };
+
+  const setItem = (i, patch) => setItems(prev => prev.map((it, idx) => idx === i ? { ...it, ...patch } : it));
+  const addItem = () => setItems(prev => [...prev, { name: '', qty: 30 }]);
+  const removeItem = (i) => setItems(prev => prev.filter((_, idx) => idx !== i));
+  const quickAdd = (name) => setItems(prev => {
+    if (prev.some(it => it.name === name)) return prev;
+    const blank = prev.findIndex(it => !it.name.trim());
+    if (blank >= 0) return prev.map((it, idx) => idx === blank ? { name, qty: 30 } : it);
+    return [...prev, { name, qty: 30 }];
+  });
+
+  const valid = items.filter(it => it.name.trim() && it.qty > 0);
+  const subtotal = valid.reduce((s, it) => s + it.qty * mrpOf(it.name), 0);
+  const discount = activeOffer ? activeOffer.discount : 0;
+  const total = Math.round(subtotal * (1 - discount / 100));
+  const overStock = valid.some(it => { const a = availOf(it.name); return a != null && it.qty > a; });
+  const canConfirm = !!patient && valid.length > 0 && !overStock;
+
+  const confirm = () => {
+    if (!canConfirm) return;
+    PharmacyBridge.addDispense({
+      pharmacyName, pharmacyCode,
+      patientName: patient.name,
+      items: valid.map(it => ({ name: it.name.trim(), qty: it.qty, mrp: mrpOf(it.name) })),
+      total,
+      offer: activeOffer ? { label: activeOffer.label, discount: activeOffer.discount } : null,
+    });
+    onDone(patient, valid.length, total);
+  };
+
+  return (
+    <Modal open onClose={onClose}
+      title="New refill — counter sale"
+      subtitle="Record medicines handed to a walk-in patient · updates stock & their app"
+      width={640}>
+      <datalist id="sale-med-list">
+        {INVENTORY.map(i => <option key={i.name} value={i.name} />)}
+      </datalist>
+
+      <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {/* Patient */}
+        <div>
+          <div style={rxFieldLabel}>Patient (registered in SaathiPill)</div>
+          <select value={patientId} onChange={e => setPatientId(e.target.value)} style={{ ...rxInput, cursor: 'pointer' }}>
+            <option value="">Select a patient…</option>
+            {PATIENTS.map(p => <option key={p.id} value={p.id}>{p.name} · {p.age} · {p.conditions.join(', ')}</option>)}
+          </select>
+          {patient && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+              <Avatar patient={patient} size={30} />
+              <span style={{ fontSize: 12, color: C.textMid, fontWeight: 600 }}>Their meds:</span>
+              {patient.meds.map(m => (
+                <button key={m} onClick={() => quickAdd(m)} style={{
+                  padding: '4px 10px', borderRadius: 12, cursor: 'pointer',
+                  border: `1px solid ${C.border}`, background: C.cream, color: C.navy,
+                  fontFamily: fonts.body, fontSize: 11, fontWeight: 700,
+                }}>+ {m}</button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Items */}
+        <div>
+          <div style={rxFieldLabel}>Medicines dispensed</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 10, padding: '0 4px', fontSize: 10, fontWeight: 700, color: C.textMuted, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              <span style={{ flex: 1 }}>Medicine</span>
+              <span style={{ width: 92, textAlign: 'center' }}>Qty</span>
+              <span style={{ width: 96, textAlign: 'right' }}>Line total</span>
+              <span style={{ width: 34 }} />
+            </div>
+            {items.map((it, i) => {
+              const avail = availOf(it.name);
+              const over = avail != null && it.qty > avail;
+              const known = !!invByName(it.name);
+              return (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <input list="sale-med-list" value={it.name} onChange={e => setItem(i, { name: e.target.value })}
+                      placeholder="Medicine name" spellCheck={false} style={{ ...rxInput, flex: 1 }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 0, width: 92, flexShrink: 0 }}>
+                      <button onClick={() => setItem(i, { qty: Math.max(1, it.qty - 5) })} style={qtyStep}>−</button>
+                      <input type="number" min={1} value={it.qty} onChange={e => setItem(i, { qty: parseInt(e.target.value) || 0 })}
+                        style={{ ...rxInput, width: 40, textAlign: 'center', padding: 0, borderRadius: 0, borderLeft: 'none', borderRight: 'none', fontWeight: 800, color: over ? C.red : C.navy }} />
+                      <button onClick={() => setItem(i, { qty: it.qty + 5 })} style={qtyStep}>+</button>
+                    </div>
+                    <span style={{ width: 96, textAlign: 'right', fontSize: 13, fontWeight: 700, color: known ? C.navy : C.textMuted }}>
+                      {known ? inr(it.qty * mrpOf(it.name)) : '—'}
+                    </span>
+                    <button onClick={() => removeItem(i)} disabled={items.length === 1} title="Remove" style={{
+                      width: 34, height: 38, borderRadius: 6, flexShrink: 0,
+                      border: `1px solid ${C.border}`, background: C.cream,
+                      color: items.length === 1 ? C.border : C.textMuted,
+                      cursor: items.length === 1 ? 'not-allowed' : 'pointer', fontSize: 14,
+                    }}>✕</button>
+                  </div>
+                  {it.name.trim() && (
+                    <div style={{ paddingLeft: 4, fontSize: 11, fontWeight: 600, color: over ? C.red : C.textMuted }}>
+                      {avail == null ? 'Not in your inventory — sold as a one-off' :
+                        over ? `⚠ Only ${avail} in stock` :
+                        `${avail} in stock → ${avail - it.qty} after sale`}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <button onClick={addItem} style={{
+            marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 8,
+            padding: '8px 14px', border: `1px dashed ${C.border}`, borderRadius: 8,
+            background: 'transparent', cursor: 'pointer',
+            fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: C.textMid,
+          }}><span style={{ fontSize: 16, color: C.coral, lineHeight: 1 }}>+</span> Add medicine</button>
+        </div>
+
+        {/* Totals */}
+        <div style={{ padding: '14px 16px', borderRadius: 8, background: C.cream, border: `1px solid ${C.borderSoft}` }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.textMid, fontWeight: 600 }}>
+            <span>Subtotal ({valid.reduce((s, it) => s + it.qty, 0)} units)</span>
+            <span>{inr(subtotal)}</span>
+          </div>
+          {discount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.sage, fontWeight: 700, marginTop: 6 }}>
+              <span>{activeOffer.label} · −{discount}%</span>
+              <span>−{inr(subtotal - total)}</span>
+            </div>
+          )}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}` }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Total payable</span>
+            <span style={{ fontSize: 22, fontWeight: 800, color: C.navy }}>{inr(total)}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ padding: '14px 22px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, background: C.cream }}>
+        <span style={{ fontSize: 12, color: overStock ? C.red : C.textMid, fontWeight: 600 }}>
+          {!patient ? 'Select a patient to continue'
+            : overStock ? 'Reduce quantities — not enough stock'
+            : valid.length === 0 ? 'Add at least one medicine'
+            : 'Stock & the patient\'s app update on confirm'}
+        </span>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <Button variant="ghost" onClick={onClose}>Cancel</Button>
+          <Button variant="coral" disabled={!canConfirm} onClick={confirm} icon={<span>🧾</span>}>
+            Confirm sale
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+const qtyStep = {
+  width: 26, height: 38, border: `1px solid ${C.border}`, background: C.cream,
+  color: C.textMid, cursor: 'pointer', fontSize: 16, fontWeight: 700, lineHeight: 1,
+  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+};
+
+function NotificationsPanel({ open, onClose, onNavigate }) {
+  const activeOffer = readActiveOffer();
+  if (!open) return null;
+  const baseNotifs = [
+    { kind: 'red', title: 'Mohammed Ansari — switch risk', body: 'Adherence at 45%. No refill in 56 days.', time: '4 min ago' },
+    { kind: 'amber', title: 'Refill awaiting confirm — 2h', body: 'Geeta Rao — ₹2,840 order pending', time: '2h ago' },
+    { kind: 'navy', title: 'New patient linked', body: 'Aarti Verma, 55 · Diabetes', time: '1h ago' },
+    { kind: 'sage', title: 'Order ready notification sent', body: 'Suresh Kumar — SP-1228', time: '3h ago' },
+    { kind: 'amber', title: 'Inventory: Amlodipine out of stock', body: 'Order soon — 12 patients depend on it', time: '5h ago' },
+  ];
+  const offerNotif = activeOffer ? [{
+    kind: 'coral', title: `🏷️ Offer live — ${activeOffer.discount}% off`, body: `"${activeOffer.label}" · ${activeOffer.reach} patients notified · Valid until ${fmtDate(activeOffer.expiry)}`, time: 'Active now', isOffer: true,
+  }] : [];
+  const allNotifs = [...offerNotif, ...baseNotifs];
+  return (
+    <div style={{
+      position: 'fixed', top: 64, right: 24, width: 380,
+      background: C.white, border: `1px solid ${C.border}`,
+      borderRadius: 10, boxShadow: '0 16px 48px rgba(15,27,45,0.15)',
+      zIndex: 90, maxHeight: '70vh', overflow: 'hidden',
+      display: 'flex', flexDirection: 'column',
+    }} onClick={e => e.stopPropagation()}>
+      <div style={{ padding: '14px 18px', borderBottom: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h3 style={{ margin: 0, fontSize: 15, fontWeight: 800, color: C.navy }}>Notifications</h3>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: C.textMid }}>✕</button>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {allNotifs.map((n, i) => {
+          const c = { red: C.red, amber: C.amber, navy: C.navy, sage: C.sage, coral: C.coral }[n.kind];
+          return (
+            <div key={i} onClick={n.isOffer ? () => { onClose(); onNavigate && onNavigate('offers'); } : undefined}
+              style={{ padding: '12px 18px', borderBottom: `1px solid ${C.divider}`, display: 'flex', gap: 10, cursor: n.isOffer ? 'pointer' : 'default', background: n.isOffer ? C.coralSoft : 'transparent' }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: c, marginTop: 6, flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{n.title}</div>
+                <div style={{ fontSize: 12, color: C.textMid, marginTop: 2, lineHeight: 1.4 }}>{n.body}</div>
+                <div style={{ fontSize: 11, color: n.isOffer ? C.coral : C.textMuted, marginTop: 4, fontWeight: 600 }}>{n.time}</div>
+              </div>
+              {n.isOffer && <span style={{ color: C.coral, fontSize: 16, alignSelf: 'center' }}>›</span>}
+            </div>
+          );
+        })}
+      </div>
+      <div style={{ padding: '10px 18px', borderTop: `1px solid ${C.border}`, textAlign: 'center', background: C.cream }}>
+        <button style={{ background: 'none', border: 'none', color: C.navy, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>View all notifications</button>
+      </div>
+    </div>
+  );
+}
+
+function Toast({ msg, kind, onDone }) {
+  useEffect(() => {
+    const t = setTimeout(onDone, 2800);
+    return () => clearTimeout(t);
+  }, []);
+  const bg = kind === 'success' ? C.sage : kind === 'error' ? C.red : C.navy;
+  return (
+    <div style={{
+      position: 'fixed', bottom: 32, left: '50%', transform: 'translateX(-50%)',
+      background: bg, color: '#fff',
+      padding: '12px 20px', borderRadius: 8,
+      fontFamily: fonts.body, fontSize: 13, fontWeight: 600,
+      boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
+      zIndex: 200, display: 'flex', alignItems: 'center', gap: 10,
+      animation: 'toastIn 0.28s cubic-bezier(0.34,1.56,0.64,1)',
+    }}>
+      <span style={{ fontSize: 16 }}>{kind === 'success' ? '✓' : kind === 'error' ? '✕' : 'i'}</span>
+      {msg}
+    </div>
+  );
+}
+
+function Label({ children }) {
+  return <div style={{ fontSize: 11, fontWeight: 700, color: C.textMid, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{children}</div>;
+}
+
+const searchRow = {
+  width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+  padding: '10px 14px', border: 'none', background: 'transparent',
+  borderBottom: `1px solid ${C.divider}`, cursor: 'pointer',
+  fontFamily: fonts.body, textAlign: 'left',
+};
+
+function SearchGroup({ label, count, children }) {
+  return (
+    <div>
+      <div style={{
+        padding: '8px 14px', background: C.cream,
+        fontSize: 10, fontWeight: 700, color: C.textMid,
+        letterSpacing: '0.06em', textTransform: 'uppercase',
+        display: 'flex', justifyContent: 'space-between',
+        borderBottom: `1px solid ${C.divider}`,
+      }}>
+        <span>{label}</span><span>{count}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+// ── Main App ──
+function App() {
+  const [route, setRoute] = useState('dashboard');
+  const [patientId, setPatientId] = useState(null);
+  const [smsPatient, setSmsPatient] = useState(null);
+  const [declinePatient, setDeclinePatient] = useState(null);
+  const [genericModal, setGenericModal] = useState(null); // { kind, patient }
+  const [prescribePatient, setPrescribePatient] = useState(null);
+  const [newRefillOpen, setNewRefillOpen] = useState(false);
+  const [notifsOpen, setNotifsOpen] = useState(false);
+  const [toast, setToast] = useState(null);
+
+  const navigate = useCallback((target, data) => {
+    if (target === 'patient-detail') {
+      setPatientId(data);
+      setRoute('patient-detail');
+    } else {
+      setRoute(target);
+      setPatientId(null);
+    }
+    // Scroll content to top
+    requestAnimationFrame(() => {
+      const main = document.getElementById('portal-main');
+      if (main) main.scrollTop = 0;
+    });
+  }, []);
+
+  // Capture hook — lets the flow-map capture pipeline drive navigation.
+  useEffect(() => {
+    window.__nav = navigate;
+    window.__openPrescribe = (id) => setPrescribePatient(PATIENTS.find(p => p.id === id));
+  }, [navigate]);
+
+  const handleAction = useCallback((action, patient) => {
+    if (action === 'sms' || action?.kind === 'adherence-dip') {
+      setSmsPatient(patient);
+    } else if (action === 'prescribe') {
+      setPrescribePatient(patient);
+    } else if (action === 'new-refill') {
+      setNewRefillOpen(true);
+    } else if (action === 'decline') {
+      setDeclinePatient(patient);
+    } else if (action === 'refill' || action === 'prescription' || action === 'call') {
+      setGenericModal({ kind: action, patient });
+    } else if (action?.kind === 'pending-order') {
+      setToast({ msg: `Order confirmed for ${patient.name}`, kind: 'success' });
+    } else if (action?.kind === 'out-of-stock') {
+      setGenericModal({ kind: 'refill', patient });
+    } else if (action?.kind === 'switch-risk') {
+      setGenericModal({ kind: 'call', patient });
+    } else if (action?.kind === 'new-patient') {
+      navigate('patient-detail', patient.id);
+    } else {
+      setToast({ msg: 'Action performed', kind: 'info' });
+    }
+  }, [navigate]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      const map = { d: 'dashboard', p: 'patients', r: 'refills', i: 'inventory', a: 'analytics', c: 'partners', o: 'offers' };
+      if (map[e.key.toLowerCase()]) navigate(map[e.key.toLowerCase()]);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [navigate]);
+
+  return (
+    <div style={{ display: 'flex', minHeight: '100vh', background: C.cream }}>
+      <Sidebar active={route} onNavigate={navigate} />
+
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <TopBar onNotificationsClick={() => setNotifsOpen(v => !v)} onNavigate={navigate} />
+
+        <div id="portal-main" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+          {route === 'dashboard' && <DashboardScreen onNavigate={navigate} onAction={handleAction} />}
+          {route === 'patients' && <PatientsScreen onNavigate={navigate} />}
+          {route === 'patient-detail' && <PatientDetailScreen patientId={patientId} onNavigate={navigate} onAction={handleAction} />}
+          {route === 'refills' && <RefillsScreen onAction={handleAction} />}
+          {route === 'inventory' && <InventoryScreen />}
+          {route === 'offers' && <OffersScreen />}
+          {route === 'analytics' && <AnalyticsScreen />}
+          {route === 'partners' && <PharmacyPartnerScreen />}
+          {route === 'profile' && <ProfileSetupScreen />}
+        </div>
+      </main>
+
+      {/* Modals */}
+      <SmsModal patient={smsPatient} onClose={() => setSmsPatient(null)} onSend={() => { setSmsPatient(null); setToast({ msg: 'SMS sent', kind: 'success' }); }} />
+      <DeclineModal patient={declinePatient} onClose={() => setDeclinePatient(null)} onConfirm={() => { setDeclinePatient(null); setToast({ msg: 'Order declined — patient notified', kind: 'success' }); }} />
+      {genericModal && <GenericModal kind={genericModal.kind} patient={genericModal.patient} onClose={() => setGenericModal(null)} />}
+      {prescribePatient && <PrescribeModal patient={prescribePatient} onClose={() => setPrescribePatient(null)} onSent={(n) => { const name = prescribePatient.name.split(' ')[0]; setPrescribePatient(null); setToast({ msg: `${n} medicine${n > 1 ? 's' : ''} sent to ${name}'s SaathiPill app`, kind: 'success' }); }} />}
+      {newRefillOpen && <NewRefillModal onClose={() => setNewRefillOpen(false)} onDone={(patient, n, total) => { setNewRefillOpen(false); setToast({ msg: `Sale recorded for ${patient.name.split(' ')[0]} · ${inr(total)} · stock updated`, kind: 'success' }); }} />}
+
+      {notifsOpen && (
+        <>
+          <div onClick={() => setNotifsOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 89 }} />
+          <NotificationsPanel open={notifsOpen} onClose={() => setNotifsOpen(false)} onNavigate={navigate} />
+        </>
+      )}
+
+      {toast && <Toast msg={toast.msg} kind={toast.kind} onDone={() => setToast(null)} />}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

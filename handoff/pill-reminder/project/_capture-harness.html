@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Capture Harness</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="screens-1-v2.jsx"></script>
+<script type="text/babel" src="screens-2-v2.jsx"></script>
+<script type="text/babel" src="screens-3-v2.jsx"></script>
+<script type="text/babel" src="screens-quickadd-v2.jsx"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  /* Outer html is sized to fit the scaled phone so the capture has no surrounding
+     whitespace. PHONE = 393×852 px. Scale = 0.6 → 236×511 px (fits 540h viewport). */
+  html, body {
+    background: #FAF6F0;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    margin: 0; padding: 0;
+    width: 236px;
+    height: 512px;
+    overflow: hidden;
+  }
+  #root {
+    width: 393px;
+    height: 852px;
+    position: relative;
+    background: #FAF6F0;
+    overflow: hidden;
+    transform: scale(0.6);
+    transform-origin: top left;
+  }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  /* Status bar */
+  .statusbar {
+    position: absolute; top: 0; left: 0; right: 0; height: 54px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 28px 0 32px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: #1C1008;
+    z-index: 500;
+    pointer-events: none;
+  }
+  .statusbar .right {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 14px;
+  }
+  .stage {
+    position: absolute;
+    top: 54px; left: 0; right: 0;
+    height: 758px;
+    display: flex; flex-direction: column;
+    background: #FAF6F0;
+    overflow: hidden;
+  }
+  /* Home indicator */
+  .home-indicator {
+    position: absolute;
+    bottom: 8px;
+    left: 50%; transform: translateX(-50%);
+    width: 134px; height: 5px;
+    border-radius: 3px;
+    background: #1C1008;
+    opacity: 0.35;
+    z-index: 500;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+const SCREENS = {
+  splash: { comp: 'SplashScreen', props: { onDone: () => {} } },
+  auth: { comp: 'AuthScreen', props: { onLogin: () => {}, onSignUp: () => {}, showDemoHints: true } },
+  onboarding: { comp: 'OnboardingScreen', props: { onDone: () => {} } },
+  profileSetup: { comp: 'ProfileSetupScreen', props: { onDone: () => {} } },
+
+  home: { comp: 'HomeScreen', getProps: () => ({
+    onNavigate: () => {}, onAddMed: () => {}, onLogSymptoms: () => {},
+    onAddAppointment: () => {}, onReminderClick: () => {},
+    onAppointmentReminder: () => {}, userName: 'Shreyas',
+    isNewUser: false, userMeds: window.medicines, userAppointments: [],
+    onToggleMed: () => {}, pendingSync: {}, isOffline: false,
+  })},
+  addMed: { comp: 'AddMedicineScreen', props: { onDone: () => {}, onClose: () => {} } },
+  logSymptoms: { comp: 'LogSymptomsScreen', props: { onClose: () => {}, onDone: () => {} } },
+  addAppointment: { comp: 'AddAppointmentScreen', props: { onClose: () => {}, onDone: () => {} } },
+  appointmentReminder: { comp: 'AppointmentReminderModal', props: {
+    appointment: {
+      doctor: 'Dr. Priya Sharma', specialty: 'cardio',
+      date: new Date(Date.now() + 86400000).toISOString(),
+      time: '3:30 PM', location: 'Apollo Clinic, Indiranagar',
+      reason: 'Follow-up on BP medication; ECG results review',
+      reminderLead: '1d',
+    },
+    onSnooze: () => {}, onDismiss: () => {}, onDirections: () => {},
+  }},
+
+  reminder: { comp: 'ReminderModal', getProps: () => ({
+    med: window.medicines[0],
+    onTaken: () => {}, onSnooze: () => {}, onSkip: () => {}, onEscalation: () => {},
+    snoozeCount: 0, snoozeCap: 3, isOffline: false,
+  })},
+  escalation: { comp: 'EscalationScreen', props: { onClose: () => {} } },
+
+  insights: { comp: 'AIInsightsScreen', props: { onClose: () => {} } },
+  history: { comp: 'HistoryScreen', props: { onClose: () => {}, isNewUser: false, userAppointments: [], userSymptoms: [] } },
+  analytics: { comp: 'AnalyticsScreen', props: { onClose: () => {}, isNewUser: false } },
+
+  family: { comp: 'FamilyScreen', props: { onNavigate: () => {}, isNewUser: false } },
+  caregiver: { comp: 'CaregiverScreen', props: {
+    member: { name: 'Mohan (Father)', initials: 'MK', pct: 60, status: '1 dose missed', color: '#E05252', bg: '#FDEAEA' },
+    onClose: () => {},
+  }},
+  addFamily: { comp: 'AddFamilyMemberScreen', props: { onClose: () => {}, onAdded: () => {}, userName: 'Shreyas' } },
+
+  refills: { comp: 'RefillsScreen', props: { onNavigate: () => {} } },
+  pharmacy: { comp: 'PharmacyBannerScreen', props: { onClose: () => {} } },
+
+  report: { comp: 'DoctorReportScreen', props: { onClose: () => {}, userName: 'Shreyas', userSymptoms: [], onLogSymptoms: () => {} } },
+  interactions: { comp: 'InteractionsScreen', props: { onClose: () => {} } },
+  profile: { comp: 'ProfileScreen', props: { onNavigate: () => {}, userName: 'Shreyas' } },
+  offline: { comp: 'OfflineScreen', props: { onClose: () => {} } },
+};
+
+function StatusBar() {
+  return (
+    <div className="statusbar">
+      <span>9:41</span>
+      <span className="right">
+        <svg width="18" height="11" viewBox="0 0 18 11" fill="currentColor"><rect x="0" y="6" width="3" height="5" rx="0.5"/><rect x="5" y="4" width="3" height="7" rx="0.5"/><rect x="10" y="2" width="3" height="9" rx="0.5"/><rect x="15" y="0" width="3" height="11" rx="0.5"/></svg>
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="none" stroke="currentColor" strokeWidth="1.2"><path d="M1 6.5C3.5 4 6 3 8 3s4.5 1 7 3.5" strokeLinecap="round"/><circle cx="8" cy="9" r="1" fill="currentColor"/></svg>
+        <svg width="26" height="12" viewBox="0 0 26 12" fill="none"><rect x="0.5" y="0.5" width="22" height="11" rx="3" stroke="currentColor" strokeWidth="1"/><rect x="2.5" y="2.5" width="18" height="7" rx="1.5" fill="currentColor"/><rect x="23" y="3.5" width="2" height="5" rx="1" fill="currentColor"/></svg>
+      </span>
+    </div>
+  );
+}
+
+function Harness() {
+  // Initial screen: read from hash, default to 'home'
+  const initial = (location.hash || '#home').slice(1);
+  const [id, setId] = useState(initial);
+  console.log('[harness] render, id=', id);
+
+  useEffect(() => {
+    window.__showScreen = (next) => {
+      setId(next);
+      location.hash = next;
+    };
+    window.__ready = true;
+    // Signal fonts loaded so external waiter knows when it's safe to capture
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(() => { window.__fontsLoaded = true; });
+    } else {
+      window.__fontsLoaded = true;
+    }
+  }, []);
+
+  if (id === '__blank__') return <div style={{ position: 'absolute', inset: 0, background: '#FAF6F0' }} />;
+
+  const entry = SCREENS[id];
+  if (!entry) return <div style={{ padding: 30, fontFamily: 'monospace', fontSize: 14, color: '#888' }}>Unknown screen: {id}</div>;
+  const Comp = window[entry.comp];
+  if (!Comp) return <div style={{ padding: 30, fontFamily: 'monospace', fontSize: 14, color: '#888' }}>Loading {entry.comp}…</div>;
+  const props = entry.getProps ? entry.getProps() : entry.props;
+
+  return (
+    <>
+      <StatusBar />
+      <div className="stage">
+        <Comp {...props} />
+      </div>
+      <div className="home-indicator" />
+    </>
+  );
+}
+
+function waitForGlobals(cb) {
+  const need = [
+    'SplashScreen', 'AuthScreen', 'OnboardingScreen', 'ProfileSetupScreen', 'HomeScreen',
+    'AddMedicineScreen', 'LogSymptomsScreen', 'AddAppointmentScreen', 'AppointmentReminderModal',
+    'ReminderModal', 'EscalationScreen', 'AIInsightsScreen', 'HistoryScreen', 'AnalyticsScreen',
+    'FamilyScreen', 'CaregiverScreen', 'AddFamilyMemberScreen',
+    'RefillsScreen', 'PharmacyBannerScreen',
+    'DoctorReportScreen', 'InteractionsScreen', 'ProfileScreen', 'OfflineScreen',
+    'medicines',
+  ];
+  if (need.every(k => window[k] !== undefined)) cb();
+  else setTimeout(() => waitForGlobals(cb), 80);
+}
+
+waitForGlobals(() => {
+  console.log('[harness] globals ready, mounting');
+  const root = ReactDOM.createRoot(document.getElementById('root'));
+  root.render(<Harness />);
+});
+</script>
+</body>
+</html>

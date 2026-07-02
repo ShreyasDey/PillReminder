@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontends",
+      "runtimeExecutable": "C:\\Users\\GUEST1\\nodejs\\node-v24.18.0-win-x64\\node.exe",
+      "runtimeArgs": ["serve-frontends.mjs"],
+      "port": 5173
+    }
+  ]
+}

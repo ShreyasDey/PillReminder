@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SaathiPill — Pill Reminder App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="screens-1.jsx"></script>
+<script type="text/babel" src="screens-2.jsx"></script>
+<script type="text/babel" src="screens-3.jsx"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: #1C1008; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', sans-serif; }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  button { -webkit-tap-highlight-color: transparent; }
+  input, textarea { -webkit-appearance: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "fontSize": 15,
+  "cornerRadius": 15,
+  "accentColor": "#E8705A",
+  "showPhoneFrame": true,
+  "userName": "Shreyas"
+}/*EDITMODE-END*/;
+
+// ── Bottom Navigation ──
+function BottomNav({ activeTab, onTab }) {
+  const tabs = [
+    { id: 'home', icon: '💊', label: 'Today' },
+    { id: 'family', icon: '👨‍👩‍👧', label: 'Family' },
+    { id: 'refills', icon: '🏪', label: 'Refills' },
+    { id: 'profile', icon: '👤', label: 'Profile' },
+  ];
+  return (
+    <div style={{
+      position: 'absolute', bottom: 0, left: 0, right: 0,
+      height: 72, background: C.white,
+      borderTop: `1px solid ${C.border}`,
+      display: 'flex', alignItems: 'center',
+      paddingBottom: 8,
+      zIndex: 100,
+    }}>
+      {tabs.map(t => (
+        <button key={t.id} onClick={() => onTab(t.id)} style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+          gap: 4, border: 'none', background: 'none', cursor: 'pointer',
+          padding: '8px 0',
+        }}>
+          <div style={{
+            width: 40, height: 32, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: activeTab === t.id ? C.coralLight : 'transparent',
+            transition: 'background 0.2s',
+            fontSize: 20,
+          }}>{t.icon}</div>
+          <span style={{
+            fontFamily: fonts.body, fontSize: 11, fontWeight: 700,
+            color: activeTab === t.id ? C.coral : C.textMuted,
+            transition: 'color 0.2s',
+          }}>{t.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Screen transition wrapper ──
+function ScreenSlide({ children, visible, direction = 'right' }) {
+  return (
+    <div style={{
+      position: 'absolute', inset: 0,
+      transform: visible ? 'translateX(0)' : direction === 'right' ? 'translateX(100%)' : 'translateX(-100%)',
+      transition: 'transform 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
+      display: 'flex', flexDirection: 'column',
+      background: C.cream,
+      zIndex: visible ? 10 : 5,
+      pointerEvents: visible ? 'auto' : 'none',
+    }}>{children}</div>
+  );
+}
+
+// ── Main App ──
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  // Apply tweaks as CSS variables live
+  useEffect(() => {
+    const style = document.getElementById('tweak-overrides') || (() => {
+      const s = document.createElement('style');
+      s.id = 'tweak-overrides';
+      document.head.appendChild(s);
+      return s;
+    })();
+    style.textContent = `
+      :root {
+        --tweak-font-size: ${tweaks.fontSize}px;
+        --tweak-accent: ${tweaks.accentColor};
+        --tweak-radius: ${tweaks.cornerRadius}px;
+      }
+      #root * { font-size: inherit; }
+    `;
+    // Also update C.coral live so components pick it up
+    C.coral = tweaks.accentColor;
+    C.coralLight = tweaks.accentColor + '22';
+    C.coralDark = tweaks.accentColor;
+  }, [tweaks.fontSize, tweaks.accentColor, tweaks.cornerRadius]);
+
+  // Main flow state
+  const [screen, setScreen] = useState('splash');
+  const [tab, setTab] = useState('home');
+  const [overlayScreen, setOverlayScreen] = useState(null);
+  const [overlayData, setOverlayData] = useState(null);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [userMeds, setUserMeds] = useState(null);
+
+  const handleToggleMed = (id) => {
+    setUserMeds(prev => (prev || medicines).map(m => m.id === id ? { ...m, taken: !m.taken } : m));
+  };
+
+  const handleAddMed = (med) => {
+    const timeMap = { morning: '8:00 AM', afternoon: '1:00 PM', evening: '5:00 PM', night: '9:00 PM' };
+    const newMed = {
+      id: Date.now(),
+      name: med.drug || 'Medicine',
+      dose: med.dose || '1 tablet',
+      time: med.times && med.times.length > 0 ? (timeMap[med.times[0]] || '8:00 AM') : '8:00 AM',
+      meal: med.meal === 'before' ? 'Before meal' : med.meal === 'after' ? 'After meal' : med.meal === 'empty' ? 'Empty stomach' : 'At bedtime',
+      icon: '💊', taken: false, color: C.coral,
+    };
+    setUserMeds(prev => [...(prev || []), newMed]);
+  };
+
+  // Success toast
+  const [toast, setToast] = useState(null);
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 2500);
+  };
+
+  const navigate = useCallback((target, data) => {
+    setOverlayData(data || null);
+    setOverlayScreen(target);
+  }, []);
+
+  const closeOverlay = () => {
+    setOverlayScreen(null);
+    setOverlayData(null);
+  };
+
+  const mainTabs = ['home', 'family', 'refills', 'profile'];
+  const isInMainApp = mainTabs.includes(screen);
+
+  // After onboarding, go to profile setup, then home
+  const handleOnboardingDone = () => setScreen('profileSetup');
+  const handleProfileDone = () => setScreen('home');
+  const handleLogin = () => { setIsNewUser(false); setUserMeds(medicines); setScreen('home'); };
+  const handleSignUp = (name) => { setIsNewUser(true); setUserMeds([]); setScreen('onboarding'); };
+
+  // Overlay screens map
+  const overlayScreens = {
+    addMed: <AddMedicineScreen onDone={(med) => { handleAddMed(med); closeOverlay(); showToast('✓ Medicine added!'); }} onClose={closeOverlay} />,
+    reminder: <ReminderModal med={overlayData} onTaken={() => { closeOverlay(); showToast('✓ Marked as taken!'); }} onSnooze={() => { closeOverlay(); showToast('⏰ Snoozed for 10 min'); }} onSkip={closeOverlay} onEscalation={() => { setOverlayScreen('escalation'); }} />,
+    escalation: <EscalationScreen onClose={closeOverlay} />,
+    insights: <AIInsightsScreen onClose={closeOverlay} />,
+    history: <HistoryScreen onClose={closeOverlay} />,
+    analytics: <AnalyticsScreen onClose={closeOverlay} />,
+    report: <DoctorReportScreen onClose={closeOverlay} userName={tweaks.userName} />,
+    offline: <OfflineScreen onClose={closeOverlay} />,
+    pharmacy: <PharmacyBannerScreen onClose={closeOverlay} />,
+    caregiver: <CaregiverScreen member={overlayData?.member || { name: 'Mohan (Father)', initials: 'MK', pct: 60, status: '1 dose missed', color: '#E05252', bg: '#FDEAEA' }} onClose={closeOverlay} />,
+    addFamily: <AddFamilyMemberScreen onClose={closeOverlay} onAdded={() => { closeOverlay(); showToast('✓ Invite sent!'); }} userName={tweaks.userName} />,
+  };
+
+  const showBottomNav = screen === 'home' && !overlayScreen;
+
+  return (
+    <div style={{
+      width: '100vw', height: '100vh',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'radial-gradient(ellipse at center, #2C1A10 0%, #0F0A06 100%)',
+      fontSize: tweaks.fontSize + 'px',
+    }}>
+      {tweaks.showPhoneFrame ? (
+        <IOSDevice dark={false}>
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: C.cream, paddingTop: 60, paddingBottom: 34 }}>
+            <AppInner
+              screen={screen} setScreen={setScreen}
+              tab={tab} setTab={t => { setTab(t); setScreen(t); setOverlayScreen(null); }}
+              overlayScreen={overlayScreen} overlayScreens={overlayScreens}
+              closeOverlay={closeOverlay}
+              navigate={navigate}
+              handleOnboardingDone={handleOnboardingDone}
+              handleProfileDone={handleProfileDone}
+              handleLogin={handleLogin}
+              handleSignUp={handleSignUp}
+              isNewUser={isNewUser}
+              userMeds={userMeds}
+              handleAddMed={handleAddMed}
+              handleToggleMed={handleToggleMed}
+              showBottomNav={showBottomNav}
+              toast={toast}
+              tweaks={tweaks}
+            />
+          </div>
+        </IOSDevice>
+      ) : (
+        <div style={{
+          width: 393, height: 852,
+          borderRadius: 48, overflow: 'hidden',
+          boxShadow: '0 40px 120px rgba(0,0,0,0.7)',
+          position: 'relative',
+          display: 'flex', flexDirection: 'column',
+          background: C.cream,
+        }}>
+          <AppInner
+            screen={screen} setScreen={setScreen}
+            tab={tab} setTab={t => { setTab(t); setScreen(t); setOverlayScreen(null); }}
+            overlayScreen={overlayScreen} overlayScreens={overlayScreens}
+            closeOverlay={closeOverlay}
+            navigate={navigate}
+            handleOnboardingDone={handleOnboardingDone}
+            handleProfileDone={handleProfileDone}
+            handleLogin={handleLogin}
+            handleSignUp={handleSignUp}
+            isNewUser={isNewUser}
+            userMeds={userMeds}
+            handleAddMed={handleAddMed}
+            handleToggleMed={handleToggleMed}
+            showBottomNav={showBottomNav}
+            toast={toast}
+            tweaks={tweaks}
+          />
+        </div>
+      )}
+
+      {/* Screen navigator sidebar */}
+      <ScreenNavigator onNavigate={(s, data) => {
+        const tabs = ['home', 'family', 'refills', 'profile'];
+        if (tabs.includes(s)) {
+          setScreen(s);
+          setTab(s === 'home' ? 'home' : s);
+          setOverlayScreen(null);
+        } else if (['splash','onboarding','profileSetup'].includes(s)) {
+          setScreen(s);
+          setOverlayScreen(null);
+        } else {
+          setScreen('home');
+          setTab('home');
+          setOverlayData(data || null);
+          setOverlayScreen(s);
+        }
+      }} currentScreen={overlayScreen || screen} />
+
+      {/* Tweaks Panel */}
+      <TweaksPanel>
+        <TweakSection label="Display" />
+        <TweakToggle label="Phone frame" value={tweaks.showPhoneFrame} onChange={v => setTweak('showPhoneFrame', v)} />
+        <TweakSection label="Typography" />
+        <TweakSlider label="Body font size" value={tweaks.fontSize} min={14} max={22} unit="px" onChange={v => setTweak('fontSize', v)} />
+        <TweakSection label="Design" />
+        <TweakColor label="Accent color" value={tweaks.accentColor} onChange={v => setTweak('accentColor', v)} />
+        <TweakSlider label="Corner radius" value={tweaks.cornerRadius} min={8} max={32} unit="px" onChange={v => setTweak('cornerRadius', v)} />
+        <TweakSection label="Content" />
+        <TweakText label="User name" value={tweaks.userName} onChange={v => setTweak('userName', v)} />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+// ── Inner app content (separated so it works with and without frame) ──
+function AppInner({ screen, setScreen, tab, setTab, overlayScreen, overlayScreens, closeOverlay, navigate, handleOnboardingDone, handleProfileDone, handleLogin, handleSignUp, isNewUser, userMeds, handleAddMed, handleToggleMed, showBottomNav, toast, tweaks }) {
+
+  const handleTabChange = (t) => {
+    setTab(t);
+  };
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', background: C.cream }}>
+
+      {/* Base screens */}
+      {screen === 'splash' && <SplashScreen onDone={() => setScreen('auth')} />}
+      {screen === 'auth' && <AuthScreen onLogin={handleLogin || (() => setScreen('home'))} onSignUp={handleSignUp || (() => setScreen('onboarding'))} />}
+      {screen === 'onboarding' && <OnboardingScreen onDone={handleOnboardingDone} />}
+      {screen === 'profileSetup' && <ProfileSetupScreen onDone={handleProfileDone} />}
+
+      {/* Main app screens */}
+      {screen === 'home' && (
+        <HomeScreen
+          onNavigate={navigate}
+          onAddMed={() => navigate('addMed')}
+          onReminderClick={(med) => navigate('reminder', med)}
+          userName={tweaks.userName}
+          isNewUser={isNewUser}
+          userMeds={userMeds}
+          onToggleMed={handleToggleMed}
+        />
+      )}
+      {screen === 'family' && (
+        <FamilyScreen onNavigate={navigate} isNewUser={isNewUser} />
+      )}
+      {screen === 'refills' && (
+        <RefillsScreen onNavigate={navigate} />
+      )}
+      {screen === 'profile' && (
+        <ProfileScreen onNavigate={navigate} userName={tweaks.userName} />
+      )}
+
+      {/* Bottom Nav */}
+      {(screen === 'home' || screen === 'family' || screen === 'refills' || screen === 'profile') && !overlayScreen && (
+        <BottomNav activeTab={screen} onTab={setTab} />
+      )}
+
+      {/* Overlay screens */}
+      {overlayScreen && overlayScreens[overlayScreen] && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column',
+          background: C.cream,
+          zIndex: 20,
+          animation: 'slideUp 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}>
+          {overlayScreens[overlayScreen]}
+        </div>
+      )}
+
+      {/* Toast */}
+      {toast && (
+        <div style={{
+          position: 'absolute', top: 60, left: '50%', transform: 'translateX(-50%)',
+          background: C.text, color: C.white, padding: '12px 20px', borderRadius: 14,
+          fontFamily: fonts.body, fontSize: 14, fontWeight: 600,
+          boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
+          animation: 'toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1)',
+          whiteSpace: 'nowrap', zIndex: 200,
+        }}>{toast}</div>
+      )}
+
+      <style>{`
+        @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes toastIn { from { transform: translateX(-50%) translateY(-16px) scale(0.9); opacity: 0; } to { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; } }
+      `}</style>
+    </div>
+  );
+}
+
+// ── Screen Navigator Panel ──
+const allScreens = [
+  { id: 'splash', label: '① Splash', group: 'Onboarding' },
+  { id: 'auth', label: '② Login / Sign Up', group: 'Onboarding' },
+  { id: 'onboarding', label: '③ Onboarding', group: 'Onboarding' },
+  { id: 'profileSetup', label: '④ Profile Setup', group: 'Onboarding' },
+  { id: 'home', label: '⑤ Home Dashboard', group: 'Core' },
+  { id: 'addMed', label: '⑥ Add Medicine', group: 'Core' },
+  { id: 'reminder', label: '⑦ Reminder Modal', group: 'Reminders' },
+  { id: 'escalation', label: '⑧ Escalation Flow', group: 'Reminders' },
+  { id: 'insights', label: '⑨ AI Insights', group: 'Tracking' },
+  { id: 'history', label: '⑩ Medication History', group: 'Tracking' },
+  { id: 'analytics', label: '⑪ Adherence Analytics', group: 'Tracking' },
+  { id: 'family', label: '⑫ Family Tab', group: 'Family' },
+  { id: 'caregiver', label: '⑬ Caregiver View', group: 'Family' },
+  { id: 'addFamily', label: '⑭ Add Family Member', group: 'Family' },
+  { id: 'refills', label: '⑮ Refills Tab', group: 'Refills' },
+  { id: 'pharmacy', label: '⑯ Pharmacy Banner', group: 'Refills' },
+  { id: 'report', label: '⑰ Doctor Report', group: 'More' },
+  { id: 'profile', label: '⑱ Profile & Settings', group: 'More' },
+  { id: 'offline', label: '⑲ Offline State', group: 'More' },
+];
+
+function ScreenNavigator({ onNavigate, currentScreen }) {
+  const [open, setOpen] = useState(false);
+  const groups = [...new Set(allScreens.map(s => s.group))];
+
+  return (
+    <>
+      {/* Toggle button */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          position: 'fixed', left: open ? 240 : 0, top: '50%', transform: 'translateY(-50%)',
+          width: 32, height: 64, borderRadius: '0 12px 12px 0',
+          background: 'rgba(232,112,90,0.9)', border: 'none', cursor: 'pointer',
+          color: '#fff', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'left 0.3s', zIndex: 1000,
+          backdropFilter: 'blur(8px)',
+        }}
+        title="Screen Navigator"
+      >
+        {open ? '‹' : '›'}
+      </button>
+
+      {/* Sidebar */}
+      <div style={{
+        position: 'fixed', left: 0, top: 0, bottom: 0, width: 240,
+        background: 'rgba(20,12,8,0.95)',
+        backdropFilter: 'blur(20px)',
+        transform: open ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
+        zIndex: 999, overflow: 'auto',
+        borderRight: '1px solid rgba(255,255,255,0.08)',
+        padding: '24px 0 24px',
+      }}>
+        <div style={{ padding: '0 16px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: 16 }}>
+          <div style={{ fontFamily: fonts.heading, fontSize: 18, fontWeight: 800, color: '#fff' }}>💊 SaathiPill</div>
+          <div style={{ fontFamily: fonts.body, fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>18 screens · All interactive</div>
+        </div>
+
+        {groups.map(group => (
+          <div key={group} style={{ marginBottom: 8 }}>
+            <div style={{ padding: '6px 16px', fontFamily: fonts.body, fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em' }}>
+              {group.toUpperCase()}
+            </div>
+            {allScreens.filter(s => s.group === group).map(s => {
+              const isActive = currentScreen === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => { onNavigate(s.id); setOpen(false); }}
+                  style={{
+                    width: '100%', padding: '10px 16px', border: 'none', cursor: 'pointer',
+                    background: isActive ? 'rgba(232,112,90,0.2)' : 'transparent',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    borderLeft: isActive ? `3px solid ${C.coral}` : '3px solid transparent',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <span style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: isActive ? 700 : 400, color: isActive ? C.coral : 'rgba(255,255,255,0.65)', textAlign: 'left' }}>
+                    {s.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

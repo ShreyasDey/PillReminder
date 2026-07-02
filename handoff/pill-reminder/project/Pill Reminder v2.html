@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SaathiPill v2 — Pill Reminder App</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="pharmacy-bridge.js"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="screens-1-v2.jsx"></script>
+<script type="text/babel" src="screens-2-v2.jsx"></script>
+<script type="text/babel" src="screens-3-v2.jsx"></script>
+<script type="text/babel" src="screens-quickadd-v2.jsx"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; background: #1C1008; overflow: hidden; }
+  body { display: flex; align-items: center; justify-content: center; font-family: 'Plus Jakarta Sans', sans-serif; }
+  ::-webkit-scrollbar { width: 0; height: 0; }
+  button { -webkit-tap-highlight-color: transparent; }
+  input, textarea { -webkit-appearance: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "fontSize": 15,
+  "cornerRadius": 15,
+  "accentColor": "#E8705A",
+  "showPhoneFrame": true,
+  "userName": "Shreyas",
+  "showDemoHints": false,
+  "isOffline": false
+}/*EDITMODE-END*/;
+
+// ── Bottom Navigation ──
+function BottomNav({ activeTab, onTab }) {
+  const tabs = [
+    { id: 'home', icon: '💊', label: 'Today' },
+    { id: 'family', icon: '👨‍👩‍👧', label: 'Family' },
+    { id: 'refills', icon: '🏪', label: 'Refills' },
+    { id: 'profile', icon: '👤', label: 'Profile' },
+  ];
+  return (
+    <div style={{
+      position: 'absolute', bottom: 0, left: 0, right: 0,
+      height: 72, background: C.white,
+      borderTop: `1px solid ${C.border}`,
+      display: 'flex', alignItems: 'center',
+      paddingBottom: 8,
+      zIndex: 100,
+    }}>
+      {tabs.map(t => (
+        <button key={t.id} onClick={() => onTab(t.id)} style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+          gap: 4, border: 'none', background: 'none', cursor: 'pointer',
+          padding: '8px 0',
+        }}>
+          <div style={{
+            width: 40, height: 32, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: activeTab === t.id ? C.coralLight : 'transparent',
+            transition: 'background 0.2s',
+            fontSize: 20,
+          }}>{t.icon}</div>
+          <span style={{
+            fontFamily: fonts.body, fontSize: 11, fontWeight: 700,
+            color: activeTab === t.id ? C.coral : C.textMuted,
+            transition: 'color 0.2s',
+          }}>{t.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Screen transition wrapper ──
+function ScreenSlide({ children, visible, direction = 'right' }) {
+  return (
+    <div style={{
+      position: 'absolute', inset: 0,
+      transform: visible ? 'translateX(0)' : direction === 'right' ? 'translateX(100%)' : 'translateX(-100%)',
+      transition: 'transform 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
+      display: 'flex', flexDirection: 'column',
+      background: C.cream,
+      zIndex: visible ? 10 : 5,
+      pointerEvents: visible ? 'auto' : 'none',
+    }}>{children}</div>
+  );
+}
+
+// ── Main App ──
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  // Apply tweaks as CSS variables live
+  useEffect(() => {
+    const style = document.getElementById('tweak-overrides') || (() => {
+      const s = document.createElement('style');
+      s.id = 'tweak-overrides';
+      document.head.appendChild(s);
+      return s;
+    })();
+    style.textContent = `
+      :root {
+        --tweak-font-size: ${tweaks.fontSize}px;
+        --tweak-accent: ${tweaks.accentColor};
+        --tweak-radius: ${tweaks.cornerRadius}px;
+      }
+      #root * { font-size: inherit; }
+    `;
+    // Also update C.coral live so components pick it up
+    C.coral = tweaks.accentColor;
+    C.coralLight = tweaks.accentColor + '22';
+    C.coralDark = tweaks.accentColor;
+  }, [tweaks.fontSize, tweaks.accentColor, tweaks.cornerRadius]);
+
+  // Main flow state
+  const [screen, setScreen] = useState('splash');
+  const [tab, setTab] = useState('home');
+  const [overlayScreen, setOverlayScreen] = useState(null);
+  const [overlayData, setOverlayData] = useState(null);
+  const [isNewUser, setIsNewUser] = useState(false);
+  const [userMeds, setUserMeds] = useState(null);
+  const [familyMeds, setFamilyMeds] = useState({}); // keyed by member name
+  const [userSymptoms, setUserSymptoms] = useState([]);
+  const [userAppointments, setUserAppointments] = useState([]);
+
+  // ── Prescriptions pushed in from the Pharmacy Portal (shared localStorage) ──
+  const [pharmacyPushes, setPharmacyPushes] = useState(() =>
+    (typeof PharmacyBridge !== 'undefined' ? PharmacyBridge.read() : []));
+  const pendingPushes = pharmacyPushes.filter(p => p.status === 'pending');
+  const prevPendingRef = useRef(pendingPushes.length);
+
+  const handleAddSymptom = (payload) => {
+    setUserSymptoms((prev) => [...prev, { ...payload, timestamp: new Date().toISOString() }]);
+  };
+  const handleAddAppointment = (payload) => {
+    // payload.date is a Date; normalize to ISO
+    const iso = payload.date instanceof Date ? payload.date.toISOString() : new Date(payload.date).toISOString();
+    setUserAppointments((prev) => [...prev, { ...payload, date: iso, id: Date.now() }]);
+  };
+
+  const handleToggleMed = (id) => {
+    setUserMeds(prev => (prev || medicines).map(m => m.id === id ? { ...m, taken: !m.taken, skipped: false, skipDate: null, skipReason: null, skipIcon: null, skipExcluded: false } : m));
+    // L-11: any toggle while offline is queued for sync
+    if (isOffline) {
+      setPendingSync(prev => ({ ...prev, [id]: true }));
+    }
+  };
+
+  // Auto-flush pending-sync queue when connection returns (L-11)
+  // Issue #2: include pendingSync in deps so flushes ALSO fire for items queued
+  // *after* the device comes back online (e.g. network flapping)
+  useEffect(() => {
+    if (!isOffline && Object.keys(pendingSync).length > 0) {
+      const count = Object.keys(pendingSync).length;
+      const timer = setTimeout(() => {
+        setPendingSync({});
+        showToast(`✓ Synced ${count} update${count > 1 ? 's' : ''} to caregivers`, { duration: 2400 });
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [isOffline, pendingSync]); // eslint-disable-line
+
+  const handleAddMed = (med) => {
+    const timeMap = { morning: '8:00 AM', afternoon: '1:00 PM', evening: '5:00 PM', night: '9:00 PM', ...(med.customTimesMap || {}) };
+    const courseEndDate = med.courseType === 'fixed' && med.courseDays
+      ? new Date(Date.now() + med.courseDays * 86400000).toISOString()
+      : null;
+    const mealLabel = med.meal === 'before' ? 'Before meal' : med.meal === 'after' ? 'After meal' : med.meal === 'empty' ? 'Empty stomach' : 'At bedtime';
+
+    // Build a short schedule label for non-daily schedules so the home card communicates it
+    let scheduleLabel = null;
+    if (med.schedule === 'weekly' && med.weeklyDays && med.weeklyDays.length > 0) {
+      const letters = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+      if (med.weeklyDays.length === 7) {
+        scheduleLabel = null; // every day = same as daily
+      } else if (med.weeklyDays.length === 5 && [1,2,3,4,5].every(d => med.weeklyDays.includes(d))) {
+        scheduleLabel = 'Weekdays';
+      } else if (med.weeklyDays.length === 2 && [0,6].every(d => med.weeklyDays.includes(d))) {
+        scheduleLabel = 'Weekends';
+      } else {
+        scheduleLabel = med.weeklyDays.map(d => letters[d]).join(' · ');
+      }
+    } else if (med.schedule === 'cyclic' && med.cyclicOn) {
+      scheduleLabel = `${med.cyclicOn} on / ${med.cyclicOff || 0} off`;
+    }
+
+    // Today is in the "on" phase for weekly/cyclic? (controls whether dose entries appear today)
+    const today = new Date();
+    let activeToday = true;
+    if (med.schedule === 'weekly' && med.weeklyDays) {
+      activeToday = med.weeklyDays.includes(today.getDay());
+    }
+    // Cyclic: treat today as day-1 of the "on" phase (so it shows up today by default)
+
+    // Helper to convert "8:00 AM" → minutes-from-midnight, for chronological sort
+    const toMinutes = (t) => {
+      const m = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (!m) return 0;
+      let h = parseInt(m[1], 10) % 12;
+      if (m[3].toUpperCase() === 'PM') h += 12;
+      return h * 60 + parseInt(m[2], 10);
+    };
+
+    // One entry per scheduled time — so each dose shows up separately in today's list
+    const timeIds = med.times && med.times.length > 0 ? med.times : ['morning'];
+    const groupId = Date.now() * 1000 + Math.floor(Math.random() * 1000);
+    const newEntries = timeIds
+      .map((tid) => timeMap[tid] || '8:00 AM')
+      .sort((a, b) => toMinutes(a) - toMinutes(b))
+      .map((timeStr, idx) => ({
+        id: groupId + idx,
+        groupId,                    // links all doses of the same medicine
+        doseIndex: idx + 1,
+        doseTotal: timeIds.length,
+        name: med.drug || 'Medicine',
+        dose: med.dose || '1 tablet',
+        time: timeStr,
+        meal: mealLabel,
+        icon: '💊',
+        taken: false,
+        color: C.coral,
+        courseType: med.courseType || 'ongoing',
+        courseEndDate,
+        schedule: med.schedule || 'daily',
+        scheduleLabel,
+        activeToday,
+        source: med.source || null,
+        instructions: med.instructions || null,
+      }));
+
+    setUserMeds(prev => [...(prev || []), ...newEntries]);
+  };
+
+  // Success toast — improvement #9 (better position) + #15 (offline indicator)
+  const [toast, setToast] = useState(null);
+  const isOffline = !!tweaks.isOffline;
+
+  // Track snooze counts per medicine — fixes L-06 (unbounded snooze loop)
+  const [snoozeCounts, setSnoozeCounts] = useState({});
+  // Track which "taken" marks were made while offline — fixes L-11 (pending sync indicator)
+  const [pendingSync, setPendingSync] = useState({});
+  const showToast = (msg, opts = {}) => {
+    setToast({ msg, ...opts });
+    setTimeout(() => setToast(null), opts.duration || 2800);
+  };
+
+  // Keep pharmacy pushes in sync with the portal (this tab + other tabs)
+  useEffect(() => {
+    if (typeof PharmacyBridge === 'undefined') return;
+    setPharmacyPushes(PharmacyBridge.read());
+    return PharmacyBridge.subscribe(setPharmacyPushes);
+  }, []);
+
+  // Announce newly-arrived prescriptions from the pharmacy
+  useEffect(() => {
+    const n = pendingPushes.length;
+    if (n > prevPendingRef.current) {
+      const latest = pendingPushes[0];
+      const count = latest?.meds?.length || 0;
+      showToast(`🏪 ${latest?.pharmacyName || 'Your pharmacy'} sent ${count} medicine${count > 1 ? 's' : ''}`, { duration: 3600 });
+    }
+    prevPendingRef.current = n;
+  }, [pendingPushes.length]); // eslint-disable-line
+
+  const handleAcceptPush = (push) => {
+    (push.meds || []).forEach(m => handleAddMed({ ...m, source: { type: 'pharmacy', name: push.pharmacyName, code: push.pharmacyCode } }));
+    if (typeof PharmacyBridge !== 'undefined') PharmacyBridge.update(push.id, { status: 'accepted' });
+    const n = (push.meds || []).length;
+    showToast(`✓ Added ${n} medicine${n > 1 ? 's' : ''} from ${push.pharmacyName}`);
+  };
+
+  const handleDismissPush = (push) => {
+    if (typeof PharmacyBridge !== 'undefined') PharmacyBridge.update(push.id, { status: 'dismissed' });
+    showToast('Prescription dismissed');
+  };
+
+  const navigate = useCallback((target, data) => {
+    setOverlayData(data || null);
+    setOverlayScreen(target);
+  }, []);
+
+  const closeOverlay = () => {
+    setOverlayScreen(null);
+    setOverlayData(null);
+  };
+
+  const mainTabs = ['home', 'family', 'refills', 'profile'];
+  const isInMainApp = mainTabs.includes(screen);
+
+  // After onboarding, go to profile setup, then home
+  const handleOnboardingDone = () => setScreen('profileSetup');
+  const handleProfileDone = () => setScreen('home');
+  const handleLogin = () => { setIsNewUser(false); setUserMeds(medicines); setScreen('home'); };
+  const handleSignUp = (name) => { setIsNewUser(true); setUserMeds([]); setScreen('onboarding'); };
+
+  // Overlay screens map
+  const reminderMed = overlayData;
+  const reminderId = reminderMed?.id ?? 'default';
+  const reminderSnoozes = snoozeCounts[reminderId] || 0;
+  const SNOOZE_CAP = 3;
+
+  const overlayScreens = {
+    addMed: <AddMedicineScreen
+      forMember={overlayData?.forMember || null}
+      onDone={(med) => {
+        const meds = Array.isArray(med) ? med : [med];
+        const member = overlayData?.forMember;
+        if (member) {
+          setFamilyMeds(prev => ({ ...prev, [member.name]: [...(prev[member.name] || []), ...meds] }));
+          closeOverlay();
+          const n = meds.length;
+          showToast(`✓ ${n > 1 ? `${n} medicines` : 'Medicine'} added for ${member.name.split(' ')[0]}`);
+        } else {
+          meds.forEach(handleAddMed);
+          closeOverlay();
+          const n = meds.length;
+          isOffline ? showToast('Saved offline — will sync when online', { kind: 'offline', duration: 3500 }) : showToast(n > 1 ? `✓ ${n} medicines added!` : '✓ Medicine added!');
+        }
+      }}
+      onClose={closeOverlay}
+    />,
+    logSymptoms: <LogSymptomsScreen onClose={closeOverlay} onDone={(payload) => { handleAddSymptom(payload); closeOverlay(); const n = payload.symptoms.length; showToast(n > 0 ? `✓ Logged ${n} symptom${n > 1 ? 's' : ''} · added to history & report` : '✓ Mood logged · added to history & report'); }} />,
+    addAppointment: <AddAppointmentScreen onClose={closeOverlay} onDone={(apt) => { handleAddAppointment(apt); closeOverlay(); const dateStr = (apt.date instanceof Date ? apt.date : new Date(apt.date)).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }); showToast(`✓ Appointment saved · ${dateStr} at ${apt.time}`); }} />,
+    appointmentReminder: <AppointmentReminderModal
+      appointment={overlayData}
+      onSnooze={() => { closeOverlay(); showToast('⏰ We\'ll remind you again in 1 hour'); }}
+      onDismiss={closeOverlay}
+      onDirections={() => { closeOverlay(); showToast('🧭 Opening directions...'); }}
+    />,
+    reminder: <ReminderModal
+      med={reminderMed}
+      snoozeCount={reminderSnoozes}
+      snoozeCap={SNOOZE_CAP}
+      isOffline={isOffline}
+      onTaken={() => { setSnoozeCounts(prev => ({ ...prev, [reminderId]: 0 })); closeOverlay(); showToast(isOffline ? 'Marked taken — pending sync to caregiver' : '✓ Marked as taken!', isOffline ? { kind: 'offline' } : {}); }}
+      onSnooze={() => {
+        const next = reminderSnoozes + 1;
+        setSnoozeCounts(prev => ({ ...prev, [reminderId]: next }));
+        if (next >= SNOOZE_CAP) {
+          // L-06: cap reached — log as probable miss and escalate
+          showToast(`Snooze limit reached (${SNOOZE_CAP}) — escalating to caregiver`, { kind: 'offline', duration: 3500 });
+          setOverlayScreen('escalation');
+        } else {
+          closeOverlay();
+          showToast(`⏰ Snoozed 10 min · ${SNOOZE_CAP - next} snooze${SNOOZE_CAP - next > 1 ? 's' : ''} left`);
+        }
+      }}
+      onSkip={(reason) => {
+        closeOverlay();
+        if (reason) {
+          // Issue #4: stamp the skip with TODAY's date so it auto-clears tomorrow
+          // (the MedicineCard only treats med.skipped as active if skipDate === today)
+          const today = new Date();
+          const skipDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+          setUserMeds(prev => (prev || medicines).map(m => m.id === reminderId ? {
+            ...m,
+            skipped: true,
+            skipDate,
+            taken: false,
+            skipReason: reason.label,
+            skipIcon: reason.icon,
+            skipExcluded: !!reason.excludesFromAdherence,
+          } : m));
+          const excluded = reason.excludesFromAdherence;
+          showToast(`${reason.icon} Skipped (${reason.label.toLowerCase()})${excluded ? ' — excluded from adherence %' : ''}`, { duration: 3200 });
+        }
+      }}
+      onEscalation={() => { setOverlayScreen('escalation'); }}
+    />,
+    escalation: <EscalationScreen onClose={closeOverlay} />,
+    history: <HistoryScreen onClose={closeOverlay} isNewUser={isNewUser} userAppointments={userAppointments} userSymptoms={userSymptoms} />,
+    analytics: <AnalyticsScreen onClose={closeOverlay} isNewUser={isNewUser} />,
+    report: <DoctorReportScreen onClose={closeOverlay} userName={tweaks.userName} userSymptoms={userSymptoms} onLogSymptoms={() => { closeOverlay(); navigate('logSymptoms'); }} />,
+    offline: <OfflineScreen onClose={closeOverlay} />,
+    pharmacy: <PharmacyBannerScreen onClose={closeOverlay} />,
+    // DRUG INTERACTIONS — hidden, re-enable when ready:
+    // interactions: <InteractionsScreen onClose={closeOverlay} />,
+    caregiver: <CaregiverScreen
+      member={overlayData?.member || { name: 'Mohan (Father)', initials: 'MK', pct: 60, status: '1 dose missed', color: '#E05252', bg: '#FDEAEA' }}
+      familyMeds={familyMeds[(overlayData?.member?.name)] || []}
+      onAddMed={(member) => { setOverlayData({ forMember: member }); setOverlayScreen('addMed'); }}
+      onClose={closeOverlay}
+    />,
+    addFamily: <AddFamilyMemberScreen onClose={closeOverlay} onAdded={() => { closeOverlay(); showToast('✓ Invite sent!'); }} userName={tweaks.userName} />,
+  };
+
+  const showBottomNav = screen === 'home' && !overlayScreen;
+
+  return (
+    <div style={{
+      width: '100vw', height: '100vh',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'radial-gradient(ellipse at center, #2C1A10 0%, #0F0A06 100%)',
+      fontSize: tweaks.fontSize + 'px',
+    }}>
+      {tweaks.showPhoneFrame ? (
+        <IOSDevice dark={false}>
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: C.cream, paddingTop: 60, paddingBottom: 34 }}>
+            <AppInner
+              screen={screen} setScreen={setScreen}
+              tab={tab} setTab={t => { setTab(t); setScreen(t); setOverlayScreen(null); }}
+              overlayScreen={overlayScreen} overlayScreens={overlayScreens}
+              closeOverlay={closeOverlay}
+              navigate={navigate}
+              handleOnboardingDone={handleOnboardingDone}
+              handleProfileDone={handleProfileDone}
+              handleLogin={handleLogin}
+              handleSignUp={handleSignUp}
+              isNewUser={isNewUser}
+              userMeds={userMeds}
+              userAppointments={userAppointments}
+              handleAddMed={handleAddMed}
+              handleToggleMed={handleToggleMed}
+              showBottomNav={showBottomNav}
+              toast={toast}
+              isOffline={isOffline}
+              pendingSync={pendingSync}
+              pendingPushes={pendingPushes}
+              onAcceptPush={handleAcceptPush}
+              onDismissPush={handleDismissPush}
+              tweaks={tweaks}
+            />
+          </div>
+        </IOSDevice>
+      ) : (
+        <div style={{
+          width: 393, height: 852,
+          borderRadius: 48, overflow: 'hidden',
+          boxShadow: '0 40px 120px rgba(0,0,0,0.7)',
+          position: 'relative',
+          display: 'flex', flexDirection: 'column',
+          background: C.cream,
+        }}>
+          <AppInner
+            screen={screen} setScreen={setScreen}
+            tab={tab} setTab={t => { setTab(t); setScreen(t); setOverlayScreen(null); }}
+            overlayScreen={overlayScreen} overlayScreens={overlayScreens}
+            closeOverlay={closeOverlay}
+            navigate={navigate}
+            handleOnboardingDone={handleOnboardingDone}
+            handleProfileDone={handleProfileDone}
+            handleLogin={handleLogin}
+            handleSignUp={handleSignUp}
+            isNewUser={isNewUser}
+            userMeds={userMeds}
+            userAppointments={userAppointments}
+            handleAddMed={handleAddMed}
+            handleToggleMed={handleToggleMed}
+            showBottomNav={showBottomNav}
+            toast={toast}
+            isOffline={isOffline}
+            pendingSync={pendingSync}
+            pendingPushes={pendingPushes}
+            onAcceptPush={handleAcceptPush}
+            onDismissPush={handleDismissPush}
+            tweaks={tweaks}
+          />
+        </div>
+      )}
+
+      {/* Screen navigator sidebar */}
+      <ScreenNavigator onNavigate={(s, data) => {
+        const tabs = ['home', 'family', 'refills', 'profile'];
+        if (tabs.includes(s)) {
+          setScreen(s);
+          setTab(s === 'home' ? 'home' : s);
+          setOverlayScreen(null);
+        } else if (['splash','onboarding','profileSetup'].includes(s)) {
+          setScreen(s);
+          setOverlayScreen(null);
+        } else {
+          setScreen('home');
+          setTab('home');
+          // For appointmentReminder demo: synthesize a mock appointment if none exists in state
+          let nav = data || null;
+          if (s === 'appointmentReminder' && !nav) {
+            const upcoming = userAppointments && userAppointments[0];
+            nav = upcoming || {
+              doctor: 'Dr. Priya Sharma',
+              specialty: 'cardio',
+              date: new Date(Date.now() + 86400000).toISOString(),
+              time: '3:30 PM',
+              location: 'Apollo Clinic, Indiranagar',
+              reason: 'Follow-up on BP medication; ECG results review',
+              reminderLead: '1d',
+            };
+          }
+          setOverlayData(nav);
+          setOverlayScreen(s);
+        }
+      }} currentScreen={overlayScreen || screen} />
+
+      {/* Tweaks Panel */}
+      <TweaksPanel>
+        <TweakSection label="Display" />
+        <TweakToggle label="Phone frame" value={tweaks.showPhoneFrame} onChange={v => setTweak('showPhoneFrame', v)} />
+        <TweakSection label="Typography" />
+        <TweakSlider label="Body font size" value={tweaks.fontSize} min={14} max={22} unit="px" onChange={v => setTweak('fontSize', v)} />
+        <TweakSection label="Design" />
+        <TweakColor label="Accent color" value={tweaks.accentColor} onChange={v => setTweak('accentColor', v)} />
+        <TweakSlider label="Corner radius" value={tweaks.cornerRadius} min={8} max={32} unit="px" onChange={v => setTweak('cornerRadius', v)} />
+        <TweakSection label="Content" />
+        <TweakText label="User name" value={tweaks.userName} onChange={v => setTweak('userName', v)} />
+        <TweakSection label="Demo helpers" />
+        <TweakToggle label="Show demo OTP hint" value={tweaks.showDemoHints} onChange={v => setTweak('showDemoHints', v)} />
+        <TweakToggle label="Simulate offline" value={tweaks.isOffline} onChange={v => setTweak('isOffline', v)} />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+// ── Inner app content (separated so it works with and without frame) ──
+function AppInner({ screen, setScreen, tab, setTab, overlayScreen, overlayScreens, closeOverlay, navigate, handleOnboardingDone, handleProfileDone, handleLogin, handleSignUp, isNewUser, userMeds, userAppointments, handleAddMed, handleToggleMed, showBottomNav, toast, isOffline, pendingSync, pendingPushes, onAcceptPush, onDismissPush, tweaks }) {
+
+  const handleTabChange = (t) => {
+    setTab(t);
+  };
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden', background: C.cream }}>
+
+      {/* Base screens */}
+      {screen === 'splash' && <SplashScreen onDone={() => setScreen('auth')} />}
+      {screen === 'auth' && <AuthScreen onLogin={handleLogin || (() => setScreen('home'))} onSignUp={handleSignUp || (() => setScreen('onboarding'))} showDemoHints={tweaks.showDemoHints} />}
+      {screen === 'onboarding' && <OnboardingScreen onDone={handleOnboardingDone} />}
+      {screen === 'profileSetup' && <ProfileSetupScreen onDone={handleProfileDone} />}
+
+      {/* Main app screens */}
+      {screen === 'home' && (
+        <HomeScreen
+          onNavigate={navigate}
+          onAddMed={() => navigate('addMed')}
+          onLogSymptoms={() => navigate('logSymptoms')}
+          onAddAppointment={() => navigate('addAppointment')}
+          onAppointmentReminder={(apt) => navigate('appointmentReminder', apt)}
+          onReminderClick={(med) => navigate('reminder', med)}
+          userName={tweaks.userName}
+          isNewUser={isNewUser}
+          userMeds={userMeds}
+          userAppointments={userAppointments}
+          onToggleMed={handleToggleMed}
+          pendingSync={pendingSync}
+          pendingPushes={pendingPushes}
+          onAcceptPush={onAcceptPush}
+          onDismissPush={onDismissPush}
+          isOffline={isOffline}
+        />
+      )}
+      {screen === 'family' && (
+        <FamilyScreen onNavigate={navigate} isNewUser={isNewUser} />
+      )}
+      {screen === 'refills' && (
+        <RefillsScreen onNavigate={navigate} />
+      )}
+      {screen === 'profile' && (
+        <ProfileScreen onNavigate={navigate} userName={tweaks.userName} />
+      )}
+
+      {/* Bottom Nav */}
+      {(screen === 'home' || screen === 'family' || screen === 'refills' || screen === 'profile') && !overlayScreen && (
+        <BottomNav activeTab={screen} onTab={setTab} />
+      )}
+
+      {/* Overlay screens */}
+      {overlayScreen && overlayScreens[overlayScreen] && (
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column',
+          background: C.cream,
+          zIndex: 60,
+          animation: 'slideUp 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}>
+          {overlayScreens[overlayScreen]}
+        </div>
+      )}
+
+      {/* Offline indicator banner — improvement #15 */}
+      {isOffline && (
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0,
+          padding: '8px 16px',
+          background: '#3D2C20', color: C.white,
+          fontFamily: fonts.body, fontSize: 12, fontWeight: 600,
+          textAlign: 'center',
+          zIndex: 250,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#FBBF24', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          <span>You're offline — reminders & saved data still work</span>
+        </div>
+      )}
+
+      {/* Toast — improvement #9 (positioned above bottom nav, richer for offline) */}
+      {toast && (
+        <div style={{
+          position: 'absolute',
+          bottom: showBottomNav ? 92 : 32,
+          left: 16, right: 16,
+          background: toast.kind === 'offline' ? '#3D2C20' : C.text,
+          color: C.white,
+          padding: '14px 18px', borderRadius: 16,
+          fontFamily: fonts.body, fontSize: 14, fontWeight: 600,
+          boxShadow: '0 12px 32px rgba(0,0,0,0.25)',
+          animation: 'toastInBottom 0.32s cubic-bezier(0.34,1.56,0.64,1)',
+          zIndex: 200,
+          display: 'flex', alignItems: 'center', gap: 12,
+        }}>
+          {toast.kind === 'offline' && (
+            <span style={{ fontSize: 20 }}>📵</span>
+          )}
+          <span style={{ flex: 1, lineHeight: 1.4 }}>{toast.msg}</span>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        @keyframes toastInBottom { from { transform: translateY(20px) scale(0.96); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        @keyframes syncBlink { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
+      `}</style>
+    </div>
+  );
+}
+
+// ── Screen Navigator Panel ──
+const allScreens = [
+  { id: 'splash', label: '① Splash', group: 'Onboarding' },
+  { id: 'auth', label: '② Login / Sign Up', group: 'Onboarding' },
+  { id: 'onboarding', label: '③ Onboarding', group: 'Onboarding' },
+  { id: 'profileSetup', label: '④ Profile Setup', group: 'Onboarding' },
+  { id: 'home', label: '⑤ Home Dashboard', group: 'Core' },
+  { id: 'addMed', label: '⑥ Add Medicine', group: 'Core' },
+  { id: 'logSymptoms', label: '⑥ᵇ Log Symptoms', group: 'Core' },
+  { id: 'addAppointment', label: '⑥ᶜ Doctor Visit', group: 'Core' },
+  { id: 'appointmentReminder', label: '⑥ᵈ Apt. Reminder', group: 'Core' },
+  { id: 'reminder', label: '⑦ Reminder Modal', group: 'Reminders' },
+  { id: 'escalation', label: '⑧ Escalation Flow', group: 'Reminders' },
+  { id: 'history', label: '⑩ Medication History', group: 'Tracking' },
+  { id: 'analytics', label: '⑪ Adherence Analytics', group: 'Tracking' },
+  { id: 'family', label: '⑫ Family Tab', group: 'Family' },
+  { id: 'caregiver', label: '⑬ Caregiver View', group: 'Family' },
+  { id: 'addFamily', label: '⑭ Add Family Member', group: 'Family' },
+  { id: 'refills', label: '⑮ Refills Tab', group: 'Refills' },
+  { id: 'pharmacy', label: '⑯ Pharmacy Banner', group: 'Refills' },
+  { id: 'report', label: '⑰ Doctor Report', group: 'More' },
+  // DRUG INTERACTIONS — hidden, re-enable when ready:
+  // { id: 'interactions', label: '⑱ Drug Interactions', group: 'More' },
+  { id: 'profile', label: '⑲ Profile & Settings', group: 'More' },
+  { id: 'offline', label: '⑳ Offline State', group: 'More' },
+];
+
+function ScreenNavigator({ onNavigate, currentScreen }) {
+  const [open, setOpen] = useState(false);
+  const groups = [...new Set(allScreens.map(s => s.group))];
+
+  return (
+    <>
+      {/* Toggle button */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        style={{
+          position: 'fixed', left: open ? 240 : 0, top: '50%', transform: 'translateY(-50%)',
+          width: 32, height: 64, borderRadius: '0 12px 12px 0',
+          background: 'rgba(232,112,90,0.9)', border: 'none', cursor: 'pointer',
+          color: '#fff', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'left 0.3s', zIndex: 1000,
+          backdropFilter: 'blur(8px)',
+        }}
+        title="Screen Navigator"
+      >
+        {open ? '‹' : '›'}
+      </button>
+
+      {/* Sidebar */}
+      <div style={{
+        position: 'fixed', left: 0, top: 0, bottom: 0, width: 240,
+        background: 'rgba(20,12,8,0.95)',
+        backdropFilter: 'blur(20px)',
+        transform: open ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.3s cubic-bezier(0.4,0,0.2,1)',
+        zIndex: 999, overflow: 'auto',
+        borderRight: '1px solid rgba(255,255,255,0.08)',
+        padding: '24px 0 24px',
+      }}>
+        <div style={{ padding: '0 16px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: 16 }}>
+          <div style={{ fontFamily: fonts.heading, fontSize: 18, fontWeight: 800, color: '#fff' }}>💊 SaathiPill</div>
+          <div style={{ fontFamily: fonts.body, fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>18 screens · All interactive</div>
+        </div>
+
+        {groups.map(group => (
+          <div key={group} style={{ marginBottom: 8 }}>
+            <div style={{ padding: '6px 16px', fontFamily: fonts.body, fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.3)', letterSpacing: '0.1em' }}>
+              {group.toUpperCase()}
+            </div>
+            {allScreens.filter(s => s.group === group).map(s => {
+              const isActive = currentScreen === s.id;
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => { onNavigate(s.id); setOpen(false); }}
+                  style={{
+                    width: '100%', padding: '10px 16px', border: 'none', cursor: 'pointer',
+                    background: isActive ? 'rgba(232,112,90,0.2)' : 'transparent',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    borderLeft: isActive ? `3px solid ${C.coral}` : '3px solid transparent',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <span style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: isActive ? 700 : 400, color: isActive ? C.coral : 'rgba(255,255,255,0.65)', textAlign: 'left' }}>
+                    {s.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

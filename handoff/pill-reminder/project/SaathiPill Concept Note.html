@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SaathiPill — Concept Note</title>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --coral:   #E8705A;
+    --sage:    #5B9B7A;
+    --amber:   #D4961A;
+    --blue:    #3B6FD4;
+    --red:     #D94F4F;
+    --text:    #1C1008;
+    --muted:   #6B5A50;
+    --border:  #E2D8D0;
+    --bg:      #FDFAF7;
+    --white:   #FFFFFF;
+    --page-w:  760px;
+  }
+
+  html { background: #D6CEC6; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--text);
+    background: #D6CEC6;
+    padding: 48px 24px 80px;
+  }
+
+  /* Page shell */
+  .page {
+    background: var(--white);
+    width: var(--page-w);
+    max-width: 100%;
+    margin: 0 auto 40px;
+    padding: 72px 80px;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.14);
+    border-radius: 2px;
+    position: relative;
+  }
+
+  /* Cover page */
+  .cover {
+    min-height: 960px;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 80px;
+  }
+
+  .cover-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: auto;
+  }
+
+  .cover-logo-mark {
+    width: 42px; height: 42px;
+    background: var(--coral);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+
+  .cover-logo-name {
+    font-family: 'Crimson Pro', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.01em;
+  }
+
+  .cover-hero {
+    margin: auto 0;
+    padding: 48px 0 40px;
+    border-top: 3px solid var(--coral);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .cover-tag {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--coral);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  .cover-title {
+    font-family: 'Crimson Pro', serif;
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1.1;
+    color: var(--text);
+    margin-bottom: 18px;
+    letter-spacing: -0.02em;
+  }
+
+  .cover-sub {
+    font-size: 15px;
+    color: var(--muted);
+    line-height: 1.7;
+    max-width: 520px;
+  }
+
+  .cover-meta {
+    margin-top: 48px;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+  }
+
+  .cover-meta-item label {
+    display: block;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--coral);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+
+  .cover-meta-item span {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  /* Body pages */
+  .section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--coral);
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+
+  h1 {
+    font-family: 'Crimson Pro', serif;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text);
+    margin-bottom: 24px;
+    letter-spacing: -0.02em;
+    padding-bottom: 14px;
+    border-bottom: 2px solid var(--coral);
+  }
+
+  h2 {
+    font-family: 'Crimson Pro', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 36px 0 12px;
+    letter-spacing: -0.01em;
+  }
+
+  h3 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    margin: 24px 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  p { margin-bottom: 14px; color: #2A1C14; }
+
+  ul, ol { padding-left: 20px; margin-bottom: 14px; }
+  li { margin-bottom: 5px; color: #2A1C14; }
+
+  strong { font-weight: 700; color: var(--text); }
+  em { font-style: italic; color: var(--muted); }
+
+  /* Feature grid */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 20px 0;
+  }
+
+  .feature-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    background: var(--bg);
+  }
+
+  .feature-card-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+
+  .feature-icon {
+    width: 28px; height: 28px;
+    border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .feature-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .feature-desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  /* Workflow steps */
+  .workflow {
+    position: relative;
+    margin: 20px 0;
+  }
+
+  .workflow::before {
+    content: '';
+    position: absolute;
+    left: 17px; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+
+  .wf-step {
+    display: flex;
+    gap: 18px;
+    margin-bottom: 18px;
+    position: relative;
+  }
+
+  .wf-num {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--coral);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+
+  .wf-num.sage { background: var(--sage); }
+  .wf-num.amber { background: var(--amber); }
+  .wf-num.blue { background: var(--blue); }
+  .wf-num.red { background: var(--red); }
+
+  .wf-body { padding-top: 7px; }
+
+  .wf-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 3px;
+  }
+
+  .wf-desc {
+    font-size: 12.5px;
+    color: var(--muted);
+    line-height: 1.55;
+    margin: 0;
+  }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 12.5px;
+  }
+
+  thead tr {
+    background: var(--text);
+    color: white;
+  }
+
+  thead th {
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:nth-child(even) { background: var(--bg); }
+
+  tbody td {
+    padding: 10px 14px;
+    color: #2A1C14;
+    vertical-align: top;
+    line-height: 1.5;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .badge-high   { background: #FDEAEA; color: var(--red); }
+  .badge-med    { background: #FEF3DC; color: var(--amber); }
+  .badge-low    { background: #EDF7F2; color: var(--sage); }
+
+  /* Callout box */
+  .callout {
+    border-left: 3px solid var(--coral);
+    background: #FEF7F5;
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 20px 0;
+  }
+
+  .callout.amber { border-color: var(--amber); background: #FFFBF0; }
+  .callout.sage  { border-color: var(--sage);  background: #F1FAF5; }
+  .callout.blue  { border-color: var(--blue);  background: #F0F4FD; }
+
+  .callout-title {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 5px;
+  }
+
+  .callout p { margin: 0; font-size: 13px; color: #2A1C14; }
+
+  /* Screen index table */
+  .screen-index {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin: 16px 0;
+  }
+
+  .screen-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg);
+  }
+
+  .screen-num {
+    width: 22px; height: 22px;
+    background: var(--coral);
+    color: white;
+    border-radius: 5px;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .screen-name { font-size: 12.5px; font-weight: 600; color: var(--text); }
+
+  /* Divider */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 32px 0;
+  }
+
+  /* Page footer */
+  .page-footer {
+    position: absolute;
+    bottom: 28px; left: 80px; right: 80px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10.5px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+
+  /* Status badges for the priority matrix */
+  .status {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 4px;
+    font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .status-fixed   { background: #EDF7F2; color: var(--sage); }
+  .status-partial { background: #FEF3DC; color: var(--amber); }
+  .status-open    { background: #F0EAE4; color: var(--muted); }
+
+  /* Print */
+  @media print {
+    html { background: white; }
+    body { padding: 0; background: white; }
+    .page {
+      box-shadow: none;
+      border-radius: 0;
+      margin: 0;
+      padding: 60px 72px;
+      page-break-after: always;
+      width: 100%;
+      max-width: 100%;
+    }
+    .page:last-child { page-break-after: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     PAGE 1 — COVER
+════════════════════════════════════════════ -->
+<div class="page cover">
+  <div class="cover-logo">
+    <div class="cover-logo-mark">💊</div>
+    <span class="cover-logo-name">SaathiPill</span>
+  </div>
+
+  <div class="cover-hero">
+    <div class="cover-tag">Internal Concept Note · Confidential</div>
+    <div class="cover-title">Application Features,<br>Workflow &amp; System<br>Leakage Analysis</div>
+    <p class="cover-sub">A comprehensive review of the SaathiPill medication reminder platform — covering all 20 screens, user journeys, system logic, and identified gaps that may lead to missed doses, data loss, or degraded trust.</p>
+  </div>
+
+  <div class="cover-meta">
+    <div class="cover-meta-item">
+      <label>Document Type</label>
+      <span>Concept Note</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Version</label>
+      <span>v2.0 — May 2026</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Status</label>
+      <span>Draft for Review</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Platform</label>
+      <span>iOS (Android planned)</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Primary Users</label>
+      <span>Elderly patients, caregivers</span>
+    </div>
+    <div class="cover-meta-item">
+      <label>Market</label>
+      <span>India (Hindi + English)</span>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    <span>SaathiPill · Concept Note · Confidential</span>
+    <span>Page 1</span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     PAGE 2 — EXECUTIVE SUMMARY + SCREEN INDEX
+════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-label">Section 1</div>
+  <h1>Executive Summary</h1>
+
+  <p>SaathiPill is a medication adherence platform designed for the Indian market, targeting elderly patients and their family caregivers. The app combines manual and AI-assisted medicine entry, a multi-tier escalation reminder system, family care coordination, pharmacy refill ordering, and doctor-ready adherence reports — all operable in low-connectivity conditions.</p>
+
+  <p>This document catalogues every feature and screen, maps the primary user workflows, describes the core system logic, and identifies <strong>potential leakage points</strong> — moments where the system may silently fail, lose data, or allow a dose to go untracked without alerting anyone.</p>
+
+  <div class="callout amber">
+    <div class="callout-title">Scope of this document</div>
+    <p>This note covers the prototype as built in v2 of the SaathiPill HTML prototype (20 screens, 3 screen files). It is not a technical architecture document — it maps product logic and identifies UX/system gaps from a product and safety perspective.</p>
+  </div>
+
+  <h2>Screen Inventory</h2>
+  <p>The application spans 20 distinct screens across 5 functional groups:</p>
+
+  <div class="screen-index">
+    <div class="screen-item"><div class="screen-num">1</div><span class="screen-name">Splash Screen</span></div>
+    <div class="screen-item"><div class="screen-num">2</div><span class="screen-name">Login / Sign Up</span></div>
+    <div class="screen-item"><div class="screen-num">3</div><span class="screen-name">Onboarding</span></div>
+    <div class="screen-item"><div class="screen-num">4</div><span class="screen-name">Profile Setup</span></div>
+    <div class="screen-item"><div class="screen-num">5</div><span class="screen-name">Home Dashboard</span></div>
+    <div class="screen-item"><div class="screen-num">6</div><span class="screen-name">Add Medicine Flow</span></div>
+    <div class="screen-item"><div class="screen-num">7</div><span class="screen-name">Reminder Modal</span></div>
+    <div class="screen-item"><div class="screen-num">8</div><span class="screen-name">Escalation Flow</span></div>
+    <div class="screen-item"><div class="screen-num">9</div><span class="screen-name">AI Insights</span></div>
+    <div class="screen-item"><div class="screen-num">10</div><span class="screen-name">Medication History</span></div>
+    <div class="screen-item"><div class="screen-num">11</div><span class="screen-name">Adherence Analytics</span></div>
+    <div class="screen-item"><div class="screen-num">12</div><span class="screen-name">Family Tab</span></div>
+    <div class="screen-item"><div class="screen-num">13</div><span class="screen-name">Caregiver View</span></div>
+    <div class="screen-item"><div class="screen-num">14</div><span class="screen-name">Add Family Member</span></div>
+    <div class="screen-item"><div class="screen-num">15</div><span class="screen-name">Refills Tab</span></div>
+    <div class="screen-item"><div class="screen-num">16</div><span class="screen-name">Pharmacy Banner</span></div>
+    <div class="screen-item"><div class="screen-num">17</div><span class="screen-name">Doctor Report</span></div>
+    <div class="screen-item"><div class="screen-num">18</div><span class="screen-name">Drug Interactions</span></div>
+    <div class="screen-item"><div class="screen-num">19</div><span class="screen-name">Profile &amp; Settings</span></div>
+    <div class="screen-item"><div class="screen-num">20</div><span class="screen-name">Offline State</span></div>
+  </div>
+
+  <div class="page-footer">
+    <span>SaathiPill · Concept Note · Confidential</span>
+    <span>Page 2</span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     PAGE 3 — FEATURES: ONBOARDING + ADD MED
+════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-label">Section 2</div>
+  <h1>Application Features</h1>
+
+  <h2>2.1 Onboarding &amp; Authentication</h2>
+  <p>New users are identified via OTP-verified mobile number. The flow branches at sign-up vs. login:</p>
+  <ul>
+    <li><strong>Sign up path:</strong> Phone → OTP → Name → Onboarding cards → Profile setup → Home</li>
+    <li><strong>Login path:</strong> Phone → OTP → Home (existing medicine list restored)</li>
+    <li>OTP is 4-digit; demo mode exposes a hint overlay for prototype testing</li>
+    <li>Profile setup collects name, age bracket, and primary language preference (Hindi / English)</li>
+  </ul>
+
+  <h2>2.2 Add Medicine Flow (5-Step Wizard)</h2>
+  <p>The most critical data-entry flow. Users can enter medicines in two modes:</p>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-card-head">
+        <div class="feature-icon" style="background:#FEF3DC;">📸</div>
+        <span class="feature-title">Scan Prescription</span>
+      </div>
+      <p class="feature-desc">Camera capture or gallery upload. AI reads handwritten prescriptions, auto-fills name, dose, and timing. Parsed results show 3 medicines with checkboxes to confirm/edit before saving.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-card-head">
+        <div class="feature-icon" style="background:#EDF7F2;">⌨️</div>
+        <span class="feature-title">Manual Entry</span>
+      </div>
+      <p class="feature-desc">5-step wizard: Medicine name → Dose → Schedule/Timing → Meal context → Priority level. Autocomplete from a 5,000+ Indian drug database. Drug interaction warning on known conflicts.</p>
+    </div>
+  </div>
+
+  <h3>Manual Wizard — Step Detail</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>Step</th>
+        <th>Field / Input</th>
+        <th>Options / Logic</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>1 — Medicine</strong></td>
+        <td>Drug name search + purpose tag</td>
+        <td>Autocomplete from DB; shows drug interaction warning for known pairs (e.g. Aspirin + Warfarin); purpose chips: Blood pressure, Diabetes, Cholesterol, Thyroid, Heart, Vitamin</td>
+      </tr>
+      <tr>
+        <td><strong>2 — Dose</strong></td>
+        <td>Dose amount</td>
+        <td>Quick chips: ½ tablet, 1 tablet, 2 tablets, 250mg, 500mg, 5ml, 10ml; free-text override</td>
+      </tr>
+      <tr>
+        <td><strong>3 — Schedule</strong></td>
+        <td>Time-of-day + recurrence</td>
+        <td>Preset slots: Morning (8AM), Afternoon (1PM), Evening (5PM), Night (9PM); Schedule type: Daily / Weekly / Cyclic. <strong>No custom time input currently.</strong></td>
+      </tr>
+      <tr>
+        <td><strong>4 — Meal</strong></td>
+        <td>Food relationship</td>
+        <td>Before meal, After meal, Empty stomach, At bedtime</td>
+      </tr>
+      <tr>
+        <td><strong>5 — Priority</strong></td>
+        <td>Criticality level</td>
+        <td>Critical (alarm + call + family alert), Standard (push + louder alarm), Gentle (single push only)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <div class="callout-title">Key Gap — Custom Time</div>
+    <p>Step 3 currently offers only 4 fixed time slots. Medicines prescribed at non-standard times (e.g. 6 AM insulin, 11 PM dialysis medication) cannot be accurately scheduled. A custom time picker is needed and has been flagged for inclusion.</p>
+  </div>
+
+  <div class="page-footer">
+    <span>SaathiPill · Concept Note · Confidential</span>
+    <span>Page 3</span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     PAGE 4 — FEATURES: REMINDERS + ESCALATION
+════════════════════════════════════════════ -->
+<div class="page">
+  <h2>2.3 Home Dashboard</h2>
+  <p>The primary daily-use screen. Shows today's medicine schedule with per-card status — <strong>Taken</strong>, <strong>Pending</strong>, <strong>Missed</strong>, or <strong>Skipped (with reason)</strong>. Key elements:</p>
+  <ul>
+    <li>Adherence ring showing today's completion percentage (doctor-advised and PRN skips are excluded from the denominator)</li>
+    <li>Medicine cards grouped by time-of-day slot, each with name, dose, time, and meal context</li>
+    <li>Tap to mark taken; tap the card to view detail or open the reminder actions</li>
+    <li>Skipped doses render with a strike-through name, a navy "Skipped" status, and an inline reason chip (e.g. <em>"🩺 Doctor advised · excluded from adherence"</em>) instead of appearing as Pending</li>
+    <li>Header summary distinguishes pending vs. skipped (e.g. <em>"All caught up ✓ · 1 skipped"</em>) so caregivers don't chase a deliberate skip</li>
+    <li>Floating "Add Medicine" button always accessible</li>
+    <li>Quick-access tiles: AI Insights, History, Analytics, Doctor Report</li>
+    <li>Contextual refill warning when stock is low</li>
+    <li>Offline banner when device is disconnected</li>
+  </ul>
+
+  <h2>2.4 Reminder System</h2>
+  <p>When a scheduled dose time arrives, a full-screen Reminder Modal is presented. It works on silent mode. Key elements:</p>
+  <ul>
+    <li>Pulsing pill animation with medicine name, dose, time, and meal context</li>
+    <li>Three actions: <strong>I've taken it</strong>, <strong>Snooze 10 min</strong>, <strong>Skip this dose</strong></li>
+    <li>Voice read-aloud in Hindi for accessibility</li>
+    <li>Escalation tier indicator shows which stage the user is at</li>
+  </ul>
+
+  <h2>2.5 Escalation Logic</h2>
+  <p>If a reminder is not acknowledged, the system escalates through four tiers. This is the most safety-critical logic in the app:</p>
+
+  <div class="workflow">
+    <div class="wf-step">
+      <div class="wf-num">1</div>
+      <div class="wf-body">
+        <div class="wf-title">Push Notification — T+0 min</div>
+        <p class="wf-desc">Standard push notification. Works on silent mode. Patient has 10 minutes to respond.</p>
+      </div>
+    </div>
+    <div class="wf-step">
+      <div class="wf-num amber">2</div>
+      <div class="wf-body">
+        <div class="wf-title">Full-Screen Alarm (Louder) — T+10 min</div>
+        <p class="wf-desc">No response within 10 minutes. Full-screen alarm overrides silent mode. Escalation indicator moves to stage 2.</p>
+      </div>
+    </div>
+    <div class="wf-step">
+      <div class="wf-num blue">3</div>
+      <div class="wf-body">
+        <div class="wf-title">Automated Voice Call — T+20 min</div>
+        <p class="wf-desc">Still no response. Automated phone call in user's preferred language (Hindi/English). Call confirms dose or logs miss.</p>
+      </div>
+    </div>
+    <div class="wf-step">
+      <div class="wf-num sage">4</div>
+      <div class="wf-body">
+        <div class="wf-title">SMS / Family Alert — T+25 min</div>
+        <p class="wf-desc">Caregiver (designated family member) receives an SMS plus an in-app push if they have SaathiPill installed. They can call the patient or mark it from their own device.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout sage">
+    <div class="callout-title">Escalation is per-medicine criticality</div>
+    <p>Medicines set to <strong>Gentle</strong> only receive step 1. <strong>Standard</strong> medicines escalate to step 2. <strong>Critical</strong> medicines escalate through all 4 steps. This logic must be enforced server-side, not just in the UI.</p>
+  </div>
+
+  <div class="page-footer">
+    <span>SaathiPill · Concept Note · Confidential</span>
+    <span>Page 4</span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     PAGE 5 — FEATURES: INSIGHTS, FAMILY, REFILLS
+════════════════════════════════════════════ -->
+<div class="page">
+
+  <h2>2.6 AI Insights &amp; Tracking</h2>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="feature-card-head">
+        <div class="feature-icon" style="background:#FEF3DC;">✨</div>
+        <span class="feature-title">AI Insights</span>
+      </div>
+      <p class="feature-desc">Personalised patterns detected from adherence data. Highlights best-performing times, missed-dose triggers, and suggests schedule adjustments. Adapts messaging for new vs. established users.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-card-head">
+        <div class="feature-icon" style="background:#F0F4FD;">📅</div>
+        <span class="feature-title">Medication History</span>
+      </div>
+      <p class="feature-desc">Calendar-style log of every taken/skipped/missed dose, filterable by medicine. Exportable. New users see an empty-state prompt to build history.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-card-head">
+        <div class="feature-icon" style="background:#EDF7F2;">📊</div>
+        <span class="feature-title">Adherence Analytics</span>
+      </div>
+      <p class="feature-desc">Weekly and monthly adherence graphs per medicine. Overall streak counter. Miss pattern analysis (day-of-week, time-of-day). Shared with caregiver on request.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-card-head">
+        <div class="feature-icon" style="background:#FDEAEA;">🩺</div>
+        <span class="feature-title">Doctor Report</span>
+      </div>
+      <p class="feature-desc">Auto-generated PDF-ready adherence report personalised to the patient's name. Includes medicines, adherence rate, missed doses, and a notes field for the doctor.</p>
+    </div>
+  </div>
+
+  <h2>2.7 Family &amp; Caregiver Network</h2>
+  <p>The family module allows multiple caregivers to monitor one or more patients from a shared view:</p>
+  <ul>
+    <li><strong>Family Tab:</strong> Shows all family members being monitored with their today's adherence percentage, status badge (On track / Missed dose), and last-seen time</li>
+    <li><strong>Caregiver View:</strong> Drill-down into a single member's today schedule, history, and streak. Caregiver can mark doses on their behalf</li>
+    <li><strong>Add Family Member:</strong> Invite by mobile number via SMS link. Sets permission level (view only vs. can-mark-doses)</li>
+    <li>SMS plus in-app push alerts sent to caregivers on missed dose escalation (step 4)</li>
+  </ul>
+
+  <h2>2.8 Refills &amp; Pharmacy</h2>
+  <p>The Refills tab is a medicine order builder integrated with pharmacy channels:</p>
+  <ul>
+    <li>Auto-populated with current medicine list; shows LOW stock badge for urgent items</li>
+    <li>Order by <strong>days supply</strong> (15/30/45/60 day buttons) or <strong>quantity</strong> (strip count)</li>
+    <li>Pharmacy selector: Local pharmacy, PharmEasy, 1mg</li>
+    <li>Delivery slot picker: Morning (9AM–12PM), Afternoon (12–5PM), Evening (5–9PM)</li>
+    <li>Payment options including Cash on Delivery</li>
+    <li>Custom item add for OTC items, specific brands, or non-medicine supplies</li>
+    <li>Promo code entry with auto-format and discount preview</li>
+    <li>Order placed state with delivery tracking entry point</li>
+  </ul>
+
+  <h2>2.9 Drug Interactions &amp; Offline Mode</h2>
+  <ul>
+    <li><strong>Drug Interactions Screen:</strong> Shows known interaction pairs in the user's current medicine list. Severity-coded (high / moderate / low). Links to "consult doctor" flow</li>
+    <li><strong>Offline Mode:</strong> All local data (reminders, medicine list, history) remains accessible. Reminders fire normally. A persistent banner signals offline status. Saves queue locally and syncs on reconnect, with toast notification confirming sync</li>
+  </ul>
+
+  <div class="page-footer">
+    <span>SaathiPill · Concept Note · Confidential</span>
+    <span>Page 5</span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     PAGE 6 — PRIMARY USER WORKFLOWS
+════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-label">Section 3</div>
+  <h1>User Workflows</h1>
+
+  <h2>3.1 First-Time User Journey</h2>
+  <div class="workflow">
+    <div class="wf-step"><div class="wf-num">1</div><div class="wf-body"><div class="wf-title">Splash → Auth</div><p class="wf-desc">User opens app. Splash screen plays. Auth screen offers Login or Sign Up.</p></div></div>
+    <div class="wf-step"><div class="wf-num">2</div><div class="wf-body"><div class="wf-title">OTP Verification</div><p class="wf-desc">User enters 10-digit mobile number. Receives 4-digit OTP. Enters OTP to verify identity.</p></div></div>
+    <div class="wf-step"><div class="wf-num">3</div><div class="wf-body"><div class="wf-title">Onboarding Cards</div><p class="wf-desc">3-screen swipeable intro. Explains reminders, family sharing, and refills. Skippable.</p></div></div>
+    <div class="wf-step"><div class="wf-num">4</div><div class="wf-body"><div class="wf-title">Profile Setup</div><p class="wf-desc">Name, age, language preference. Optional: add a family member immediately.</p></div></div>
+    <div class="wf-step"><div class="wf-num">5</div><div class="wf-body"><div class="wf-title">Add First Medicine</div><p class="wf-desc">Prompted immediately on an empty Home. 5-step wizard. Medicine saved to schedule.</p></div></div>
+    <div class="wf-step"><div class="wf-num sage">6</div><div class="wf-body"><div class="wf-title">Daily Use Loop</div><p class="wf-desc">Home dashboard shows today's schedule. User marks doses. Reminders fire at set times. Cycle repeats.</p></div></div>
+  </div>
+
+  <h2>3.2 Add Medicine Workflow (Manual)</h2>
+  <div class="workflow">
+    <div class="wf-step"><div class="wf-num">1</div><div class="wf-body"><div class="wf-title">Entry Mode Choice</div><p class="wf-desc">User taps "+" → Chooser screen: Scan prescription or Type manually.</p></div></div>
+    <div class="wf-step"><div class="wf-num">2</div><div class="wf-body"><div class="wf-title">Medicine Name (Step 1)</div><p class="wf-desc">Autocomplete search. Optional purpose tag. Drug interaction alert if applicable. Cannot proceed without a name.</p></div></div>
+    <div class="wf-step"><div class="wf-num">3</div><div class="wf-body"><div class="wf-title">Dose (Step 2)</div><p class="wf-desc">Chip selection or free text. Cannot proceed without a dose.</p></div></div>
+    <div class="wf-step"><div class="wf-num">4</div><div class="wf-body"><div class="wf-title">Schedule (Step 3)</div><p class="wf-desc">Select one or more time slots (Morning / Afternoon / Evening / Night). Choose Daily / Weekly / Cyclic. Cannot proceed without at least one time selected.</p></div></div>
+    <div class="wf-step"><div class="wf-num">5</div><div class="wf-body"><div class="wf-title">Meal Context (Step 4)</div><p class="wf-desc">Before meal / After meal / Empty stomach / At bedtime. Cannot proceed without selection.</p></div></div>
+    <div class="wf-step"><div class="wf-num">6</div><div class="wf-body"><div class="wf-title">Priority (Step 5)</div><p class="wf-desc">Critical / Standard / Gentle. Controls escalation depth. Default is Standard.</p></div></div>
+    <div class="wf-step"><div class="wf-num sage">7</div><div class="wf-body"><div class="wf-title">Saved → Home</div><p class="wf-desc">Medicine added to today's schedule. Toast confirmation shown. If offline, queued and synced later.</p></div></div>
+  </div>
+
+  <h2>3.3 Missed Dose Escalation Workflow</h2>
+  <p>Described in detail in section 2.5. The key decision tree:</p>
+  <ul>
+    <li>Dose time arrives → Notification sent</li>
+    <li>If <em>taken</em>: mark as taken, streak updated, no escalation</li>
+    <li>If <em>snoozed</em>: re-notify after 10 min, escalation timer resets</li>
+    <li>If <em>skipped</em>: logged as skip, no escalation, analytics updated</li>
+    <li>If <em>no response</em> after 10 min → escalate per criticality tier</li>
+  </ul>
+
+  <div class="page-footer">
+    <span>SaathiPill · Concept Note · Confidential</span>
+    <span>Page 6</span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     PAGE 7 — SYSTEM LEAKAGE ANALYSIS
+════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-label">Section 4</div>
+  <h1>Potential System Leakages</h1>
+
+  <p>A <strong>system leakage</strong> is any condition where the app silently fails to achieve its core purpose — ensuring the patient takes the right medicine at the right time — without surfacing an error or triggering a fallback. The following risks have been identified across 5 categories.</p>
+
+  <h2>4.1 Data Entry Leakages</h2>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Leakage Point</th><th>Description</th><th>Risk</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>L-01</td>
+        <td>No custom time input</td>
+        <td>Step 3 of Add Medicine offers only 4 fixed slots (8AM, 1PM, 5PM, 9PM). Medicines prescribed at non-standard times — 6AM insulin, 11PM anticoagulant — are rounded to the nearest slot, creating a timing gap that could be clinically significant.</td>
+        <td><span class="badge badge-high">High</span></td>
+      </tr>
+      <tr>
+        <td>L-02</td>
+        <td>Scan confidence not shown</td>
+        <td>The prescription scan flow shows parsed results but does not display an AI confidence score per field. Users may confirm incorrect auto-fills without realising they need to edit them.</td>
+        <td><span class="badge badge-high">High</span></td>
+      </tr>
+      <tr>
+        <td>L-03</td>
+        <td>Purpose field not validated</td>
+        <td>The medicine purpose field (e.g. "Blood pressure") is cosmetic — it does not constrain drug interaction checking or escalation logic. A mismatch between stated purpose and actual drug class could mislead caregivers.</td>
+        <td><span class="badge badge-med">Medium</span></td>
+      </tr>
+      <tr>
+        <td>L-04</td>
+        <td>Dose unit ambiguity</td>
+        <td>Free-text dose entry accepts any string. "1 tablet" and "500mg" may refer to the same physical pill, but the system stores them as separate strings. Refill order quantities derived from dose data may be incorrect.</td>
+        <td><span class="badge badge-med">Medium</span></td>
+      </tr>
+      <tr>
+        <td>L-05</td>
+        <td>No end-date or course duration</td>
+        <td>The wizard has no concept of a medicine course with an end date (e.g. antibiotics for 7 days). Medicines remain on the schedule indefinitely until manually deleted, risking continued reminders after the course completes.</td>
+        <td><span class="badge badge-high">High</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-footer">
+    <span>SaathiPill · Concept Note · Confidential</span>
+    <span>Page 7</span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     PAGE 8 — LEAKAGES CONT.
+════════════════════════════════════════════ -->
+<div class="page">
+
+  <h2>4.2 Notification &amp; Escalation Leakages</h2>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Leakage Point</th><th>Description</th><th>Risk</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>L-06</td>
+        <td>Snooze loop without cap</td>
+        <td>A user can snooze indefinitely. There is no maximum snooze count before the system escalates or logs a miss. A patient who snoozes 5 times in a row may believe they took the medicine when they did not.</td>
+        <td><span class="badge badge-high">High</span></td>
+      </tr>
+      <tr>
+        <td>L-07</td>
+        <td>Skip vs. miss distinction unclear</td>
+        <td>"Skip this dose" is a deliberate action. "No response" is a miss. Both result in a missed dose in analytics, but the cause is different — a skip may be doctor-advised, a miss may indicate a health event. The system must distinguish these in logs.</td>
+        <td><span class="badge badge-med">Medium</span></td>
+      </tr>
+      <tr>
+        <td>L-08</td>
+        <td>Escalation reset on app kill</td>
+        <td>If the escalation timer is running and the user force-quits or the OS kills the app (common on low-RAM Indian devices), the escalation chain may not resume from the correct step. Steps 3 and 4 (voice call, SMS) may never fire.</td>
+        <td><span class="badge badge-high">High</span></td>
+      </tr>
+      <tr>
+        <td>L-09</td>
+        <td>Caregiver not notified if blocked</td>
+        <td>SMS alerts at step 4 depend on the carrier delivering the message to the caregiver's handset. If the number has changed, the SIM is inactive, or the carrier filters bulk SMS as spam, the alert is silently lost without a secondary channel (in-app push for installed caregivers, voice call fallback otherwise).</td>
+        <td><span class="badge badge-med">Medium</span></td>
+      </tr>
+      <tr>
+        <td>L-10</td>
+        <td>No reminder for next-day medicines added late</td>
+        <td>If a user adds a medicine after its scheduled time today (e.g. adds an 8AM medicine at 10AM), it is unclear whether the system counts today's dose as missed or skips to tomorrow. This window is undefined.</td>
+        <td><span class="badge badge-med">Medium</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4.3 Offline &amp; Sync Leakages</h2>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Leakage Point</th><th>Description</th><th>Risk</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>L-11</td>
+        <td>Taken marks not synced to caregiver</td>
+        <td>If a patient marks a dose as taken while offline, the caregiver's view may show the dose as pending for hours (until sync). This could trigger a false family alert or unnecessary phone call.</td>
+        <td><span class="badge badge-high">High</span></td>
+      </tr>
+      <tr>
+        <td>L-12</td>
+        <td>Conflict resolution undefined</td>
+        <td>If a caregiver marks a dose as taken while the patient also marks it as taken offline, the sync may create a duplicate "taken" record or worse, overwrite one action silently. Conflict resolution strategy is not defined.</td>
+        <td><span class="badge badge-med">Medium</span></td>
+      </tr>
+      <tr>
+        <td>L-13</td>
+        <td>Voice call escalation fails offline</td>
+        <td>Steps 3 and 4 of the escalation flow require network connectivity (VoIP call, SMS gateway). If the device is offline during escalation, these steps cannot execute, and there is no local fallback.</td>
+        <td><span class="badge badge-high">High</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-footer">
+    <span>SaathiPill · Concept Note · Confidential</span>
+    <span>Page 8</span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     PAGE 9 — LEAKAGES CONT. + RECOMMENDATIONS
+════════════════════════════════════════════ -->
+<div class="page">
+
+  <h2>4.4 Family &amp; Permission Leakages</h2>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Leakage Point</th><th>Description</th><th>Risk</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>L-14</td>
+        <td>Permission model not enforced</td>
+        <td>The Add Family Member flow sets a permission level (view-only vs. can-mark-doses), but it is unclear whether the backend enforces this — or whether a view-only caregiver could mark a dose via a deep-link or URL manipulation.</td>
+        <td><span class="badge badge-med">Medium</span></td>
+      </tr>
+      <tr>
+        <td>L-15</td>
+        <td>No patient consent for sharing</td>
+        <td>A caregiver can add a patient and view all their medicines, adherence data, and history. There is no explicit consent flow on the <em>patient's</em> device confirming they agree to be monitored. This is a significant privacy and regulatory gap under India's DPDP Act.</td>
+        <td><span class="badge badge-high">High</span></td>
+      </tr>
+      <tr>
+        <td>L-16</td>
+        <td>Caregiver can see drug list without context</td>
+        <td>The caregiver view exposes the patient's full medicine list including sensitive medications (e.g. psychiatric, HIV, oncology drugs). No sensitivity flag or patient-controlled visibility setting exists.</td>
+        <td><span class="badge badge-med">Medium</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4.5 Refill &amp; Drug Data Leakages</h2>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Leakage Point</th><th>Description</th><th>Risk</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>L-17</td>
+        <td>Refill quantity not tied to actual stock</td>
+        <td>The refill module shows days-supply options but has no connection to actual tablet counts in the patient's possession. A patient who has 20 days remaining is not stopped from ordering 30 more days — or vice versa, may under-order.</td>
+        <td><span class="badge badge-low">Low</span></td>
+      </tr>
+      <tr>
+        <td>L-18</td>
+        <td>Drug interaction check is entry-time only</td>
+        <td>Drug interaction warnings only appear when <em>adding</em> a specific medicine (Aspirin trigger in demo). There is no periodic re-check as the user's medicine list grows. A new medicine added later may interact with an existing one without warning.</td>
+        <td><span class="badge badge-high">High</span></td>
+      </tr>
+      <tr>
+        <td>L-19</td>
+        <td>Custom refill items bypass safety checks</td>
+        <td>Users can add arbitrary OTC items to a refill order. No drug interaction or duplication check is performed on custom items. A user could unknowingly re-order a medicine already in their list under a brand name.</td>
+        <td><span class="badge badge-low">Low</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="page-footer">
+    <span>SaathiPill · Concept Note · Confidential</span>
+    <span>Page 9</span>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════
+     PAGE 10 — PRIORITY MATRIX + RECOMMENDATIONS
+════════════════════════════════════════════ -->
+<div class="page">
+  <div class="section-label">Section 5</div>
+  <h1>Recommendations &amp; Priority Matrix</h1>
+
+  <p>Leakages are grouped below by recommended action and priority. <strong>P0</strong> items should be resolved before any clinical pilot.</p>
+
+  <div class="callout sage">
+    <div class="callout-title">v2.1 Update · 9 leakages addressed in prototype</div>
+    <p>The prototype now ships with custom time picker (L-01), course-duration with auto-archive (L-05), 3-snooze cap with auto-escalation (L-06), skip-reason capture distinct from miss with adherence exclusion (L-07), server-managed escalation badge (L-08, L-13), pending-sync indicator on offline marks (L-11), SMS with in-app push fallback on step 4 (L-09), explicit patient-consent step under DPDP Act (L-15), and periodic interaction re-check banner (L-18). Backend work remains for the server-managed escalation, server-enforced caregiver permissions (L-14), and the open P1/P2 items below.</p>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>ID</th><th>Leakage</th><th>Recommended Fix</th><th>Priority &amp; Status</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>L-01</td>
+        <td>No custom time input</td>
+        <td>Add a time picker (HH:MM) in Step 3 as a 5th option alongside preset slots. Store exact times server-side.</td>
+        <td><span class="badge badge-high">P0</span><br><span class="status status-fixed">✓ Fixed in v2.1</span></td>
+      </tr>
+      <tr>
+        <td>L-05</td>
+        <td>No end-date / course duration</td>
+        <td>Add "Course duration" field in Step 3 — optional toggle with date picker or number of days. Auto-archive medicine on completion.</td>
+        <td><span class="badge badge-high">P0</span><br><span class="status status-fixed">✓ Fixed in v2.1</span></td>
+      </tr>
+      <tr>
+        <td>L-06</td>
+        <td>Unlimited snooze loop</td>
+        <td>Cap snooze at 3 times. On 3rd snooze, log as "probable miss" and begin escalation regardless of snooze action.</td>
+        <td><span class="badge badge-high">P0</span><br><span class="status status-fixed">✓ Fixed in v2.1</span></td>
+      </tr>
+      <tr>
+        <td>L-08</td>
+        <td>Escalation lost on app kill</td>
+        <td>Escalation state must persist server-side, not in app memory. Steps 3 and 4 must be triggered by a server-side scheduler, not the app process.</td>
+        <td><span class="badge badge-high">P0</span><br><span class="status status-partial">◐ UI shipped · server work pending</span></td>
+      </tr>
+      <tr>
+        <td>L-11</td>
+        <td>Offline taken marks not synced</td>
+        <td>Implement optimistic local state with a visual "pending sync" indicator on dose cards. Caregiver view must respect the sync timestamp before triggering alerts.</td>
+        <td><span class="badge badge-high">P0</span><br><span class="status status-fixed">✓ Fixed in v2.1</span></td>
+      </tr>
+      <tr>
+        <td>L-13</td>
+        <td>Escalation steps 3–4 fail offline</td>
+        <td>Escalation steps 3 and 4 are server-initiated — they require only the server to have connectivity, not the device. This is a server-architecture requirement.</td>
+        <td><span class="badge badge-high">P0</span><br><span class="status status-partial">◐ UI shipped · server work pending</span></td>
+      </tr>
+      <tr>
+        <td>L-15</td>
+        <td>No patient consent for sharing</td>
+        <td>On first caregiver add, trigger an in-app consent request on the patient's device. Require explicit accept before data is shared. Log consent timestamp.</td>
+        <td><span class="badge badge-high">P0</span><br><span class="status status-fixed">✓ Fixed in v2.1</span></td>
+      </tr>
+      <tr>
+        <td>L-18</td>
+        <td>Interaction check is entry-time only</td>
+        <td>Run interaction checks against the full medicine list every time a new medicine is added. Add a periodic background check (weekly) and surface a badge on the Drug Interactions screen if new risks are found.</td>
+        <td><span class="badge badge-high">P0</span><br><span class="status status-fixed">✓ Fixed in v2.1</span></td>
+      </tr>
+      <tr>
+        <td>L-02</td>
+        <td>Scan confidence not shown</td>
+        <td>Display a per-field confidence indicator (e.g. green/amber/red dot) on scanned results. Auto-focus the cursor on the lowest-confidence field.</td>
+        <td><span class="badge badge-med">P1</span><br><span class="status status-open">○ Open</span></td>
+      </tr>
+      <tr>
+        <td>L-07</td>
+        <td>Skip vs. miss not distinguished</td>
+        <td>Store skip and miss as separate event types in the history log. Show different icons in history view and exclude doctor-skips from adherence percentage. Today's home card surfaces the skip reason inline (e.g. "Doctor advised") instead of leaving the dose as Pending.</td>
+        <td><span class="badge badge-med">P1</span><br><span class="status status-fixed">✓ Fixed in v2.1</span></td>
+      </tr>
+      <tr>
+        <td>L-09</td>
+        <td>Caregiver SMS silent fail</td>
+        <td>Monitor SMS delivery receipts. If a step-4 SMS isn't confirmed delivered within 2 minutes, fire an in-app push to installed caregivers and queue a voice-call fallback. Surface failed delivery in the patient timeline so they know.</td>
+        <td><span class="badge badge-med">P1</span><br><span class="status status-fixed">✓ Fixed in v2.1</span></td>
+      </tr>
+      <tr>
+        <td>L-14</td>
+        <td>Permission model not enforced</td>
+        <td>Enforce caregiver permissions server-side. All dose-marking API calls must validate the actor's permission level against the patient record.</td>
+        <td><span class="badge badge-med">P1</span><br><span class="status status-partial">◐ UI shipped · server work pending</span></td>
+      </tr>
+      <tr>
+        <td>L-03</td>
+        <td>Purpose field not validated</td>
+        <td>Map purpose chips to a drug-class taxonomy. Use this mapping to surface relevant tips and to flag purpose/drug-class mismatches.</td>
+        <td><span class="badge badge-low">P2</span><br><span class="status status-open">○ Open</span></td>
+      </tr>
+      <tr>
+        <td>L-16</td>
+        <td>Caregiver sees sensitive medicines</td>
+        <td>Allow patients to mark individual medicines as private. Private medicines are excluded from caregiver view but still monitored for adherence (caregiver sees only aggregate %).</td>
+        <td><span class="badge badge-low">P2</span><br><span class="status status-open">○ Open</span></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout sage">
+    <div class="callout-title">Next Step</div>
+    <p>P0 items (L-01, L-05, L-06, L-08, L-11, L-13, L-15, L-18) should be triaged into the next sprint. A short product review session is recommended to walk through this matrix with engineering leads to estimate effort and assign owners.</p>
+  </div>
+
+  <div class="page-footer">
+    <span>SaathiPill · Concept Note · Confidential</span>
+    <span>Page 10</span>
+  </div>
+</div>
+
+</body>
+</html>

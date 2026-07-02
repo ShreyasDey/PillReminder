@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SaathiPill — UI Flow Print Review · May 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700;9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+@page { size: A4; margin: 13mm; }
+@media print {
+  body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .pb { page-break-after: always; }
+  .no-print { display: none !important; }
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Plus Jakarta Sans', sans-serif; color: #2C2420; background: white; font-size: 10px; line-height: 1.4; }
+
+/* ── TOKENS ── */
+:root {
+  --co: #E8705A; --cl: #FDEEE9; --cd: #C9543D;
+  --sg: #6BAE8C; --sl: #E8F5EE;
+  --am: #E8A838; --al: #FEF4E0;
+  --bl: #5B8EE0; --bll: #EEF3FF;
+  --cr: #FAF7F2; --tx: #2C2420; --mt: #8B7E74;
+  --bd: #EDE8E1; --wg: #F5F0EB; --rd: #E05252;
+  --dk: #1C1008;
+}
+
+/* ── PAGE ── */
+.page { width: 100%; min-height: 268mm; display: flex; flex-direction: column; }
+.pb { page-break-after: always; }
+.cover { background: linear-gradient(160deg, var(--cr) 0%, #EFE4D8 100%); padding: 36px; display: flex; flex-direction: column; gap: 24px; min-height: 268mm; }
+.spage { padding: 0 0 12px; display: flex; flex-direction: column; gap: 14px; }
+
+/* ── SECTION HEADER ── */
+.shdr { display: flex; align-items: center; gap: 10px; padding: 8px 0 7px; border-bottom: 2.5px solid var(--co); }
+.sbadge { width: 30px; height: 30px; border-radius: 8px; background: var(--co); color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.stitle { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 800; }
+.sdesc { font-size: 9.5px; color: var(--mt); margin-top: 1px; }
+
+/* ── SCREEN ROW ── */
+.srow { display: flex; align-items: flex-start; width: 100%; gap: 0; }
+.sunit { display: flex; flex-direction: column; align-items: center; flex: 1; gap: 5px; min-width: 0; }
+.sarr { width: 22px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; color: var(--mt); font-size: 14px; padding-top: 148px; }
+.sarr.soft { opacity: 0.35; }
+
+/* ── PHONE ── */
+.ph { width: 150px; height: 326px; border: 2px solid var(--dk); border-radius: 21px; overflow: hidden; position: relative; background: var(--cr); flex-shrink: 0; }
+.ntch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 64px; height: 19px; background: var(--dk); border-radius: 0 0 11px 11px; z-index: 20; }
+.sb { height: 21px; padding: 5px 11px 0; display: flex; justify-content: space-between; align-items: center; font-size: 7.5px; font-weight: 700; color: rgba(0,0,0,0.35); flex-shrink: 0; }
+.sb.w { color: rgba(255,255,255,0.6); }
+
+/* ── SCREEN LABEL ── */
+.slrow { display: flex; align-items: center; gap: 5px; }
+.snum { width: 19px; height: 19px; border-radius: 50%; background: var(--co); color: white; font-size: 8.5px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.slbl { font-size: 9.5px; font-weight: 700; color: var(--tx); }
+
+/* ── ANNOTATION ── */
+.ann { width: 150px; }
+.ann-hdr { font-size: 7px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.07em; color: #bbb; margin-bottom: 2px; }
+.ann-ln { height: 13px; border-bottom: 1px solid #e4e4e4; }
+
+/* ── SHARED MICRO COMPONENTS ── */
+.xhd { padding: 5px 9px 3px; display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.xbk { width: 22px; height: 22px; border-radius: 6px; background: var(--wg); display: flex; align-items: center; justify-content: center; font-size: 10px; flex-shrink: 0; }
+.xt { font-family: 'Fraunces', serif; font-size: 12.5px; font-weight: 800; color: var(--tx); }
+.xs { font-size: 7.5px; color: var(--mt); }
+.xlbl { font-size: 7.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--mt); padding: 0 9px; margin-bottom: 2px; margin-top: 4px; display: block; }
+.xcard { margin: 0 7px 4px; background: white; border-radius: 10px; padding: 7px 9px; border: 1px solid var(--bd); }
+.xbtn { margin: 0 7px; height: 28px; border-radius: 9px; background: var(--co); color: white; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 800; gap: 4px; }
+.xbtn.sg { background: var(--sg); }
+.xbtn.ol { background: transparent; border: 1.5px solid var(--co); color: var(--co); }
+.xbtn.gh { background: transparent; color: var(--mt); font-size: 8.5px; height: 22px; }
+.xbtn.dk { background: #3D2C20; }
+.xinp { margin: 0 7px 3px; height: 23px; border-radius: 7px; border: 1.5px solid var(--bd); background: white; padding: 0 7px; font-size: 8.5px; color: var(--mt); display: flex; align-items: center; }
+.xinp.on { border-color: var(--co); color: var(--tx); }
+.xpill { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 20px; background: var(--cl); color: var(--co); font-size: 7.5px; font-weight: 700; }
+.xpill.sg { background: var(--sl); color: var(--sg); }
+.xpill.am { background: var(--al); color: var(--am); }
+.xpill.bl { background: var(--bll); color: var(--bl); }
+.xpill.mt { background: var(--wg); color: var(--mt); }
+.xpill.rd { background: #FDEAEA; color: var(--rd); }
+.xchip { display: inline-flex; align-items: center; padding: 2px 6px; border-radius: 20px; border: 1.5px solid var(--bd); font-size: 7.5px; font-weight: 600; color: var(--tx); background: white; margin: 1px; }
+.xchip.on { border-color: var(--co); background: var(--cl); color: var(--co); }
+.xdiv { height: 1px; background: var(--bd); margin: 3px 7px; }
+.xbnav { position: absolute; bottom: 0; left: 0; right: 0; height: 38px; background: white; border-top: 1px solid var(--bd); display: flex; }
+.xni { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-size: 6.5px; font-weight: 700; color: var(--mt); }
+.xni.on { color: var(--co); }
+.xnd { width: 20px; height: 15px; border-radius: 5px; background: var(--cl); }
+.xmed { display: flex; align-items: center; gap: 6px; padding: 5px 9px; background: white; border-radius: 8px; margin: 0 7px 3px; border: 1px solid var(--bd); }
+.xmi { width: 22px; height: 22px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+.xmn { font-size: 8.5px; font-weight: 700; color: var(--tx); line-height: 1.2; }
+.xmt { font-size: 7px; color: var(--mt); }
+.xcb { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--bd); margin-left: auto; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.xcb.on { background: var(--sg); border-color: var(--sg); color: white; font-size: 8px; }
+.xfab { position: absolute; right: 9px; bottom: 43px; width: 30px; height: 30px; border-radius: 9px; background: var(--co); display: flex; align-items: center; justify-content: center; color: white; font-size: 17px; box-shadow: 0 3px 9px rgba(232,112,90,.4); }
+
+/* Escalation timeline */
+.xts { display: flex; gap: 6px; margin: 0 7px 5px; }
+.xtd { width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; }
+.xtn { font-size: 8.5px; font-weight: 700; color: var(--tx); }
+.xtx { font-size: 7.5px; color: var(--mt); line-height: 1.3; }
+
+/* Calendar */
+.xcal { display: grid; grid-template-columns: repeat(7,1fr); gap: 2px; padding: 0 6px; }
+.xcd { aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 6.5px; font-weight: 700; }
+.xcd.t { background: var(--sl); color: var(--sg); }
+.xcd.m { background: #FDEAEA; color: var(--rd); }
+.xcd.la { background: var(--al); color: var(--am); }
+.xcd.sk { background: var(--bll); color: var(--bl); }
+.xcd.p { background: var(--cl); color: var(--co); }
+.xcd.f { opacity: .2; background: var(--wg); }
+
+/* Bars */
+.xbars { display: flex; align-items: flex-end; gap: 3px; height: 40px; padding: 0 7px; }
+.xbar { flex: 1; border-radius: 3px 3px 0 0; }
+
+/* Moods */
+.xmdr { display: flex; gap: 3px; padding: 0 7px; }
+.xmdb { flex: 1; border: 1.5px solid var(--bd); border-radius: 8px; padding: 4px 2px; display: flex; flex-direction: column; align-items: center; gap: 1px; background: white; }
+.xmdb.on { border-color: var(--co); background: var(--cl); }
+.xme { font-size: 11px; }
+.xml { font-size: 6.5px; font-weight: 700; color: var(--mt); }
+
+/* Date strip */
+.xdstrip { display: flex; gap: 3px; padding: 0 7px; overflow: hidden; }
+.xdi { flex: 1; border: 1.5px solid var(--bd); border-radius: 7px; padding: 3px 2px; display: flex; flex-direction: column; align-items: center; background: white; }
+.xdi.on { background: var(--co); border-color: var(--co); }
+.xdd { font-size: 6.5px; font-weight: 700; }
+.xdn { font-size: 9.5px; font-weight: 800; }
+.xdi.on .xdd, .xdi.on .xdn { color: white; }
+
+/* Family avatar */
+.xavt { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9.5px; font-weight: 800; flex-shrink: 0; }
+
+/* Insight card */
+.xins { margin: 0 7px 4px; background: white; border-radius: 9px; border: 1px solid var(--bd); padding: 6px 8px 6px 11px; position: relative; overflow: hidden; }
+.xia { position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+
+/* Steps bar */
+.xsteps { display: flex; gap: 3px; padding: 0 7px; margin-bottom: 4px; }
+.xst { flex: 1; height: 3px; border-radius: 2px; background: var(--bd); }
+.xst.on { background: var(--co); }
+
+/* Page footer */
+.pftr { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--bd); display: flex; justify-content: space-between; font-size: 8px; color: var(--mt); }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════
+     PAGE 1 — COVER
+═══════════════════════════════ -->
+<div class="page pb">
+<div class="cover">
+
+  <!-- Logo row -->
+  <div style="display:flex;align-items:center;gap:16px;">
+    <div style="width:62px;height:62px;border-radius:17px;background:var(--co);display:flex;align-items:center;justify-content:center;font-size:30px;">💊</div>
+    <div>
+      <div style="font-family:'Fraunces',serif;font-size:30px;font-weight:800;color:var(--tx);line-height:1;">SaathiPill</div>
+      <div style="font-size:12px;color:var(--mt);margin-top:3px;">UI Flow · Print Review Document</div>
+    </div>
+    <div style="margin-left:auto;text-align:right;">
+      <div style="font-size:9px;color:var(--mt);margin-bottom:1px;">Version</div>
+      <div style="font-size:16px;font-weight:800;color:var(--tx);">v2</div>
+      <div style="font-size:9px;color:var(--mt);margin-top:6px;margin-bottom:1px;">Date</div>
+      <div style="font-size:11px;font-weight:700;color:var(--tx);">May 28, 2026</div>
+    </div>
+  </div>
+
+  <!-- How to use -->
+  <div style="background:var(--cl);border-radius:12px;padding:14px 16px;border-left:4px solid var(--co);">
+    <div style="font-size:10.5px;font-weight:800;color:var(--tx);margin-bottom:4px;">How to use this document</div>
+    <div style="font-size:9.5px;color:var(--mt);line-height:1.6;">Screens are grouped by user flow. Numbered circles show sequence. Arrows show navigation. Use the lined boxes below each screen to write feedback. Circle screen numbers with issues. Tick off approved screens.</div>
+  </div>
+
+  <!-- Flow map -->
+  <div>
+    <div style="font-family:'Fraunces',serif;font-size:15px;font-weight:800;margin-bottom:11px;">All screens · 7 flows · 6 pages</div>
+    <div style="display:flex;flex-direction:column;gap:7px;">
+      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+        <div style="font-size:8.5px;font-weight:800;color:var(--mt);width:72px;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;">Onboarding</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--cl);color:var(--co);font-size:8.5px;font-weight:700;white-space:nowrap;">① Splash</div>
+        <div style="color:var(--mt);font-size:11px;">→</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--cl);color:var(--co);font-size:8.5px;font-weight:700;white-space:nowrap;">② Auth</div>
+        <div style="color:var(--mt);font-size:11px;">→</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--cl);color:var(--co);font-size:8.5px;font-weight:700;white-space:nowrap;">③ Onboarding</div>
+        <div style="color:var(--mt);font-size:11px;">→</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--cl);color:var(--co);font-size:8.5px;font-weight:700;white-space:nowrap;">④ Profile Setup</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+        <div style="font-size:8.5px;font-weight:800;color:var(--mt);width:72px;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;">Daily Loop</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--wg);font-size:8.5px;font-weight:700;white-space:nowrap;">⑤ Home</div>
+        <div style="color:var(--mt);font-size:11px;">→</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--wg);font-size:8.5px;font-weight:700;white-space:nowrap;">⑥ Reminder Modal</div>
+        <div style="color:var(--mt);font-size:11px;">→</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--wg);font-size:8.5px;font-weight:700;white-space:nowrap;">⑦ Skip Reason</div>
+        <div style="color:var(--mt);font-size:11px;">→</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--wg);font-size:8.5px;font-weight:700;white-space:nowrap;">⑧ Escalation</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+        <div style="font-size:8.5px;font-weight:800;color:var(--mt);width:72px;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;">Quick Add</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--sl);color:var(--sg);font-size:8.5px;font-weight:700;white-space:nowrap;">⑨ Add Medicine</div>
+        <div style="color:var(--mt);font-size:11px;">·</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--sl);color:var(--sg);font-size:8.5px;font-weight:700;white-space:nowrap;">⑩ Log Symptoms</div>
+        <div style="color:var(--mt);font-size:11px;">·</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--sl);color:var(--sg);font-size:8.5px;font-weight:700;white-space:nowrap;">⑪ Add Appointment</div>
+        <div style="color:var(--mt);font-size:11px;">→</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--sl);color:var(--sg);font-size:8.5px;font-weight:700;white-space:nowrap;">⑫ Apt. Reminder</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+        <div style="font-size:8.5px;font-weight:800;color:var(--mt);width:72px;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;">Tracking</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--bll);color:var(--bl);font-size:8.5px;font-weight:700;white-space:nowrap;">⑬ AI Insights</div>
+        <div style="color:var(--mt);font-size:11px;">·</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--bll);color:var(--bl);font-size:8.5px;font-weight:700;white-space:nowrap;">⑭ Med. History</div>
+        <div style="color:var(--mt);font-size:11px;">·</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--bll);color:var(--bl);font-size:8.5px;font-weight:700;white-space:nowrap;">⑮ Analytics</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+        <div style="font-size:8.5px;font-weight:800;color:var(--mt);width:72px;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;">Family</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--al);color:var(--am);font-size:8.5px;font-weight:700;white-space:nowrap;">⑯ Family Tab</div>
+        <div style="color:var(--mt);font-size:11px;">→</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--al);color:var(--am);font-size:8.5px;font-weight:700;white-space:nowrap;">⑰ Caregiver View</div>
+        <div style="color:var(--mt);font-size:11px;">·</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--al);color:var(--am);font-size:8.5px;font-weight:700;white-space:nowrap;">⑱ Add Family</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">
+        <div style="font-size:8.5px;font-weight:800;color:var(--mt);width:72px;text-transform:uppercase;letter-spacing:.06em;flex-shrink:0;">Refills</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--wg);font-size:8.5px;font-weight:700;white-space:nowrap;">⑲ Refills Tab</div>
+        <div style="color:var(--mt);font-size:11px;">·</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--wg);font-size:8.5px;font-weight:700;white-space:nowrap;">⑳ Doctor Report</div>
+        <div style="color:var(--mt);font-size:11px;">·</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--wg);font-size:8.5px;font-weight:700;white-space:nowrap;">㉑ Profile</div>
+        <div style="color:var(--mt);font-size:11px;">·</div>
+        <div style="padding:4px 9px;border-radius:7px;background:var(--wg);font-size:8.5px;font-weight:700;white-space:nowrap;">㉒ Offline</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Review legend -->
+  <div style="display:flex;gap:16px;align-items:center;padding:11px 14px;background:white;border-radius:11px;border:1px solid var(--bd);flex-wrap:wrap;">
+    <div style="font-size:9.5px;font-weight:800;color:var(--tx);">Review legend</div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:9px;color:var(--mt);"><div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--sg);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--sg);">✓</div>Approved</div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:9px;color:var(--mt);"><div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--co);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--co);">!</div>Needs change</div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:9px;color:var(--mt);"><div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--rd);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--rd);">✕</div>Rejected</div>
+    <div style="display:flex;align-items:center;gap:5px;font-size:9px;color:var(--mt);"><div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--mt);display:flex;align-items:center;justify-content:center;font-size:9px;">?</div>Question</div>
+  </div>
+
+  <div class="pftr"><span>SaathiPill · Confidential · Internal Review Only</span><span>Page 1 of 7</span></div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════
+     PAGE 2 — ONBOARDING FLOW
+═══════════════════════════════ -->
+<div class="page pb spage">
+<div class="shdr">
+  <div class="sbadge">🚀</div>
+  <div><div class="stitle">Onboarding Flow</div><div class="sdesc">Splash → Auth (OTP login / sign up) → Feature intro (3 slides) → Profile setup → Home</div></div>
+</div>
+
+<div class="srow">
+  <!-- ① Splash -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="width:100%;height:100%;background:linear-gradient(160deg,#E8705A 0%,#C9543D 55%,#B84530 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;">
+        <div style="position:absolute;top:-18px;right:-18px;width:70px;height:70px;border-radius:50%;background:rgba(255,255,255,0.07);"></div>
+        <div style="position:absolute;bottom:-25px;left:-12px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.05);"></div>
+        <div style="width:54px;height:54px;border-radius:16px;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:12px;">💊</div>
+        <div style="font-family:'Fraunces',serif;font-size:20px;font-weight:800;color:white;letter-spacing:-.02em;margin-bottom:3px;">SaathiPill</div>
+        <div style="font-size:8.5px;color:rgba(255,255,255,0.8);text-align:center;padding:0 14px;line-height:1.4;">साथी · Your daily medicine companion</div>
+        <div style="display:flex;gap:5px;margin-top:24px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.45);"></div>
+          <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.8);"></div>
+          <div style="width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.45);"></div>
+        </div>
+        <div style="position:absolute;bottom:10px;font-size:7.5px;color:rgba(255,255,255,0.4);">100% free · Works offline</div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">1</div><div class="slbl">Splash</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr">→</div>
+
+  <!-- ② Auth -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;">
+        <div class="sb">9:41</div>
+        <div style="padding:10px 10px 8px;text-align:center;">
+          <div style="width:40px;height:40px;border-radius:12px;background:var(--cl);display:flex;align-items:center;justify-content:center;font-size:20px;margin:0 auto 7px;">💊</div>
+          <div style="font-family:'Fraunces',serif;font-size:15px;font-weight:800;color:var(--tx);">Welcome back</div>
+          <div style="font-size:8px;color:var(--mt);margin-top:2px;">Sign in to SaathiPill</div>
+        </div>
+        <span class="xlbl">Mobile number</span>
+        <div class="xinp on" style="margin-bottom:4px;"><span style="font-size:8px;color:var(--mt);margin-right:4px;">🇮🇳 +91</span><span style="font-size:8.5px;color:var(--tx);">98765 43210</span></div>
+        <span class="xlbl">One-time password</span>
+        <div style="display:flex;gap:3px;padding:0 7px;margin-bottom:10px;">
+          <div style="flex:1;height:27px;border-radius:8px;border:1.5px solid var(--co);background:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;">4</div>
+          <div style="flex:1;height:27px;border-radius:8px;border:1.5px solid var(--co);background:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;">2</div>
+          <div style="flex:1;height:27px;border-radius:8px;border:1.5px solid var(--co);background:white;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;">●</div>
+          <div style="flex:1;height:27px;border-radius:8px;border:1.5px solid var(--bd);background:var(--wg);"></div>
+          <div style="flex:1;height:27px;border-radius:8px;border:1.5px solid var(--bd);background:var(--wg);"></div>
+          <div style="flex:1;height:27px;border-radius:8px;border:1.5px solid var(--bd);background:var(--wg);"></div>
+        </div>
+        <div class="xbtn" style="margin-bottom:5px;">Login →</div>
+        <div class="xdiv"></div>
+        <div style="padding:5px 7px;">
+          <div style="background:var(--wg);border-radius:9px;padding:7px 9px;display:flex;align-items:center;gap:5px;">
+            <span style="font-size:11px;">✨</span>
+            <div style="flex:1;">
+              <div style="font-size:8.5px;font-weight:700;color:var(--tx);">New to SaathiPill?</div>
+              <div style="font-size:7.5px;color:var(--mt);">Create account in 2 minutes</div>
+            </div>
+            <div style="font-size:8.5px;font-weight:700;color:var(--co);">Sign up →</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">2</div><div class="slbl">Auth — Login / Sign Up</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr">→</div>
+
+  <!-- ③ Onboarding -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:#FFF5F2;display:flex;flex-direction:column;">
+        <div class="sb" style="color:rgba(0,0,0,0.3);">9:41</div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 12px 0;">
+          <div style="width:80px;height:80px;border-radius:24px;background:var(--cl);display:flex;align-items:center;justify-content:center;font-size:38px;margin-bottom:12px;box-shadow:0 5px 16px rgba(232,112,90,0.18);">🔔</div>
+          <div style="font-family:'Fraunces',serif;font-size:15px;font-weight:800;color:var(--tx);text-align:center;margin-bottom:5px;line-height:1.2;">Never miss a dose</div>
+          <div style="font-size:8px;color:var(--mt);text-align:center;line-height:1.5;margin-bottom:8px;">Persistent reminders with escalating alarms. Works even on silent mode.</div>
+          <div style="width:100%;display:flex;flex-direction:column;gap:3px;">
+            <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:8px;background:var(--cl);"><div style="width:5px;height:5px;border-radius:50%;background:var(--co);flex-shrink:0;"></div><span style="font-size:8px;color:var(--tx);font-weight:500;">Works on silent mode</span></div>
+            <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:8px;background:var(--cl);"><div style="width:5px;height:5px;border-radius:50%;background:var(--co);flex-shrink:0;"></div><span style="font-size:8px;color:var(--tx);font-weight:500;">Escalating alarms</span></div>
+            <div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:8px;background:var(--cl);"><div style="width:5px;height:5px;border-radius:50%;background:var(--co);flex-shrink:0;"></div><span style="font-size:8px;color:var(--tx);font-weight:500;">Phone call backup</span></div>
+          </div>
+        </div>
+        <div style="padding:7px 12px 10px;">
+          <div style="display:flex;justify-content:center;gap:4px;margin-bottom:7px;">
+            <div style="height:5px;border-radius:3px;width:14px;background:var(--co);"></div>
+            <div style="height:5px;border-radius:3px;width:5px;background:var(--bd);"></div>
+            <div style="height:5px;border-radius:3px;width:5px;background:var(--bd);"></div>
+          </div>
+          <div style="height:27px;border-radius:9px;background:var(--co);color:white;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;">Next →</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">3</div><div class="slbl">Onboarding — Slide 1 of 3</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+</div>
+
+<div style="height:12px;"></div>
+
+<div class="srow">
+  <!-- ④ Profile Setup -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;overflow:hidden;">
+        <div class="sb">9:41</div>
+        <div style="padding:4px 10px 5px;text-align:center;">
+          <div style="font-size:8px;color:var(--mt);margin-bottom:1px;">Step 1 of 2</div>
+          <div style="font-family:'Fraunces',serif;font-size:14px;font-weight:800;color:var(--tx);">Tell us about you</div>
+          <div style="font-size:7.5px;color:var(--mt);">We'll personalise SaathiPill for you</div>
+        </div>
+        <div style="display:flex;justify-content:center;padding:3px 0;">
+          <div style="width:36px;height:36px;border-radius:50%;background:var(--cl);display:flex;align-items:center;justify-content:center;font-size:17px;border:2px dashed var(--co);">👤</div>
+        </div>
+        <span class="xlbl">Full name</span>
+        <div class="xinp on">Rajesh Kumar</div>
+        <span class="xlbl">Age</span>
+        <div style="display:flex;flex-wrap:wrap;gap:3px;padding:0 7px;margin-bottom:4px;">
+          <div style="padding:2px 6px;border-radius:7px;border:1.5px solid var(--bd);font-size:7.5px;background:white;">25–34</div>
+          <div style="padding:2px 6px;border-radius:7px;border:1.5px solid var(--bd);font-size:7.5px;background:white;">35–44</div>
+          <div style="padding:2px 6px;border-radius:7px;border:1.5px solid var(--co);font-size:7.5px;background:var(--cl);color:var(--co);font-weight:700;">55–64</div>
+          <div style="padding:2px 6px;border-radius:7px;border:1.5px solid var(--bd);font-size:7.5px;background:white;">65–74</div>
+        </div>
+        <span class="xlbl">Conditions</span>
+        <div style="display:flex;flex-wrap:wrap;gap:2px;padding:0 7px;margin-bottom:5px;">
+          <div class="xchip on">Diabetes</div>
+          <div class="xchip on">Hypertension</div>
+          <div class="xchip">Thyroid</div>
+          <div class="xchip">Cardiac</div>
+        </div>
+        <span class="xlbl">Language</span>
+        <div style="display:flex;flex-wrap:wrap;gap:2px;padding:0 7px;margin-bottom:5px;">
+          <div class="xchip on">English</div>
+          <div class="xchip">हिंदी</div>
+          <div class="xchip">मराठी</div>
+          <div class="xchip">தமிழ்</div>
+        </div>
+        <div class="xbtn" style="margin-top:auto;border-radius:9px;height:26px;font-size:9.5px;">Continue →</div>
+        <div style="height:6px;"></div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">4</div><div class="slbl">Profile Setup</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr">→</div>
+
+  <!-- ⑤ Home Dashboard -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;position:relative;">
+        <div class="sb">9:41</div>
+        <div style="padding:5px 9px 3px;display:flex;align-items:center;justify-content:space-between;">
+          <div>
+            <div style="font-size:7.5px;color:var(--mt);font-weight:600;">Good afternoon,</div>
+            <div style="font-family:'Fraunces',serif;font-size:13px;font-weight:800;color:var(--tx);">Shreyas 👋</div>
+          </div>
+          <div style="width:38px;height:38px;border-radius:50%;border:4px solid var(--sg);border-right-color:var(--bd);border-bottom-color:var(--bd);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:var(--sg);">80%</div>
+        </div>
+        <div style="display:flex;gap:4px;padding:0 9px;margin-bottom:5px;">
+          <div style="flex:1;padding:4px 6px;background:var(--sl);border-radius:8px;text-align:center;"><div style="font-size:11px;font-weight:800;color:var(--sg);">4</div><div style="font-size:7px;color:var(--sg);">today</div></div>
+          <div style="flex:1;padding:4px 6px;background:var(--cl);border-radius:8px;text-align:center;"><div style="font-size:11px;font-weight:800;color:var(--co);">2</div><div style="font-size:7px;color:var(--co);">pending</div></div>
+          <div style="flex:1;padding:4px 6px;background:var(--al);border-radius:8px;text-align:center;"><div style="font-size:11px;font-weight:800;color:var(--am);">6d</div><div style="font-size:7px;color:var(--am);">streak</div></div>
+        </div>
+        <div style="font-family:'Fraunces',serif;font-size:10.5px;font-weight:700;color:var(--tx);padding:0 9px;margin-bottom:3px;">Today's medicines</div>
+        <div class="xmed"><div class="xmi" style="background:var(--sl);">💊</div><div><div class="xmn">Metformin 500mg</div><div class="xmt">8:00 AM · After breakfast</div></div><div class="xcb on">✓</div></div>
+        <div class="xmed"><div class="xmi" style="background:var(--sl);">💊</div><div><div class="xmn">Amlodipine 5mg</div><div class="xmt">9:00 AM · After breakfast</div></div><div class="xcb on">✓</div></div>
+        <div class="xmed"><div class="xmi" style="background:var(--al);">💊</div><div><div class="xmn">Telmisartan 40mg</div><div class="xmt">1:00 PM · Before lunch</div></div><div class="xcb"></div></div>
+        <div class="xmed" style="opacity:0.5;"><div class="xmi" style="background:var(--wg);">💊</div><div><div class="xmn">Atorvastatin 10mg</div><div class="xmt">9:00 PM · After dinner</div></div><div class="xcb"></div></div>
+        <div class="xfab">+</div>
+        <div class="xbnav">
+          <div class="xni on"><div class="xnd"></div>Today</div>
+          <div class="xni"><span style="font-size:12px;">👨‍👩‍👧</span>Family</div>
+          <div class="xni"><span style="font-size:12px;">🏪</span>Refills</div>
+          <div class="xni"><span style="font-size:12px;">👤</span>Profile</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">5</div><div class="slbl">Home Dashboard</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr soft">→</div>
+
+  <!-- Context note -->
+  <div style="flex:1;padding-top:12px;">
+    <div style="border:1px solid var(--bd);border-radius:10px;padding:10px 11px;background:var(--wg);">
+      <div style="font-size:8.5px;font-weight:800;color:var(--tx);margin-bottom:4px;">→ Returning users</div>
+      <div style="font-size:8px;color:var(--mt);line-height:1.55;">Returning users skip onboarding and land directly on Screen ⑤ with their medicine list populated from the previous session.</div>
+      <div style="margin-top:8px;font-size:8.5px;font-weight:800;color:var(--tx);margin-bottom:4px;">→ New users</div>
+      <div style="font-size:8px;color:var(--mt);line-height:1.55;">New users see an empty home state with a prompt to add their first medicine via the + FAB.</div>
+    </div>
+  </div>
+</div>
+
+<div class="pftr"><span>SaathiPill · Onboarding Flow · Screens 1–5</span><span>Page 2 of 7</span></div>
+</div>
+
+<!-- ═══════════════════════════════
+     PAGE 3 — DAILY CORE LOOP
+═══════════════════════════════ -->
+<div class="page pb spage">
+<div class="shdr">
+  <div class="sbadge">🔔</div>
+  <div><div class="stitle">Daily Core Loop</div><div class="sdesc">Reminder notification → Modal (take / snooze) → Skip reason sheet → Escalation timeline</div></div>
+</div>
+
+<div class="srow">
+  <!-- ⑥ Reminder Modal -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:linear-gradient(180deg,#1A1210 0%,#2C1810 45%,#3A1F14 100%);display:flex;flex-direction:column;align-items:center;">
+        <div class="sb w">1:00 PM<span style="font-size:7px;color:rgba(255,255,255,0.4);">Works on silent</span></div>
+        <!-- Escalation steps -->
+        <div style="display:flex;gap:4px;padding:0 9px;margin-bottom:5px;width:100%;">
+          <div style="flex:1;padding:4px 0;border-radius:6px;text-align:center;background:var(--co);font-size:7px;font-weight:700;color:white;">1st reminder</div>
+          <div style="flex:1;padding:4px 0;border-radius:6px;text-align:center;background:rgba(255,255,255,0.1);font-size:7px;font-weight:600;color:rgba(255,255,255,0.4);">2nd (louder)</div>
+          <div style="flex:1;padding:4px 0;border-radius:6px;text-align:center;background:rgba(255,255,255,0.1);font-size:7px;font-weight:600;color:rgba(255,255,255,0.4);">Phone call</div>
+        </div>
+        <!-- Pulsing pill -->
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <div style="width:80px;height:80px;border-radius:26px;background:rgba(232,112,90,0.22);display:flex;align-items:center;justify-content:center;margin-bottom:10px;">
+            <div style="width:58px;height:58px;border-radius:19px;background:var(--co);display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 0 28px rgba(232,112,90,0.5);">💊</div>
+          </div>
+          <div style="font-family:'Fraunces',serif;font-size:18px;font-weight:800;color:white;margin-bottom:2px;">Telmisartan</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-bottom:7px;">40mg</div>
+          <div style="display:flex;gap:5px;">
+            <div style="padding:4px 9px;border-radius:7px;background:rgba(255,255,255,0.1);font-size:8px;color:rgba(255,255,255,0.75);">🕐 1:00 PM</div>
+            <div style="padding:4px 9px;border-radius:7px;background:rgba(255,255,255,0.1);font-size:8px;color:rgba(255,255,255,0.75);">🍽 Before lunch</div>
+          </div>
+        </div>
+        <!-- Actions -->
+        <div style="width:100%;padding:0 9px 14px;display:flex;flex-direction:column;gap:5px;">
+          <div style="height:30px;border-radius:9px;background:var(--sg);color:white;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;gap:4px;box-shadow:0 3px 10px rgba(107,174,140,0.4);">✓  I've taken it</div>
+          <div style="height:28px;border-radius:9px;border:1.5px solid rgba(255,255,255,0.3);color:white;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;gap:4px;">⏰  Snooze 10 minutes</div>
+          <div style="text-align:center;font-size:8.5px;color:rgba(255,255,255,0.35);padding-top:1px;text-decoration:underline;">Skip this dose</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">6</div><div class="slbl">Reminder Modal</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr">→</div>
+
+  <!-- ⑦ Skip Reason Sheet -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;position:relative;">
+        <!-- Dimmed bg (reminder modal underneath) -->
+        <div style="width:100%;height:100%;background:linear-gradient(180deg,#1A1210 0%,#2C1810 100%);opacity:0.55;position:absolute;inset:0;"></div>
+        <!-- Bottom sheet -->
+        <div style="position:absolute;bottom:0;left:0;right:0;background:var(--cr);border-radius:18px 18px 0 0;padding:12px 11px 18px;box-shadow:0 -6px 24px rgba(0,0,0,0.3);">
+          <div style="width:32px;height:3px;border-radius:2px;background:var(--bd);margin:0 auto 10px;"></div>
+          <div style="font-family:'Fraunces',serif;font-size:14px;font-weight:800;color:var(--tx);margin-bottom:3px;">Why are you skipping?</div>
+          <div style="font-size:7.5px;color:var(--mt);line-height:1.4;margin-bottom:10px;">We log <strong>skips separately from missed doses</strong> — so your adherence stays accurate.</div>
+          <div style="display:flex;flex-direction:column;gap:5px;">
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:9px;border:1.5px solid var(--bd);background:white;">
+              <span style="font-size:13px;">🩺</span>
+              <div style="flex:1;"><div style="font-size:8.5px;font-weight:700;color:var(--tx);">Doctor advised skip</div><div style="font-size:7px;color:var(--sg);font-weight:600;">Excluded from adherence %</div></div>
+              <span style="font-size:12px;color:var(--mt);">›</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:9px;border:1.5px solid var(--bd);background:white;">
+              <span style="font-size:13px;">🤒</span>
+              <div style="flex:1;"><div style="font-size:8.5px;font-weight:700;color:var(--tx);">Side effects today</div></div>
+              <span style="font-size:12px;color:var(--mt);">›</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:9px;border:1.5px solid var(--bd);background:white;">
+              <span style="font-size:13px;">✂️</span>
+              <div style="flex:1;"><div style="font-size:8.5px;font-weight:700;color:var(--tx);">Not needed today (PRN)</div></div>
+              <span style="font-size:12px;color:var(--mt);">›</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding:8px 9px;border-radius:9px;border:1.5px solid var(--bd);background:white;">
+              <span style="font-size:13px;">💬</span>
+              <div style="flex:1;"><div style="font-size:8.5px;font-weight:700;color:var(--tx);">Other reason</div></div>
+              <span style="font-size:12px;color:var(--mt);">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">7</div><div class="slbl">Skip Reason Sheet</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr">→</div>
+
+  <!-- ⑧ Escalation Flow -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;">
+        <div class="sb">9:41</div>
+        <div class="xhd"><div class="xbk">←</div><div><div class="xt">Escalation Flow</div><div class="xs">What happens when a dose is missed</div></div></div>
+        <!-- Server badge -->
+        <div style="margin:0 7px 6px;padding:6px 9px;border-radius:9px;background:var(--bll);border:1px solid rgba(91,142,224,0.2);display:flex;align-items:center;gap:7px;">
+          <span style="font-size:13px;">🛡️</span>
+          <div style="font-size:7.5px;color:var(--tx);line-height:1.3;"><strong>Server-managed</strong> — runs even if app is closed or offline</div>
+        </div>
+        <!-- Steps -->
+        <div class="xts">
+          <div class="xtd" style="background:var(--cl);border:1.5px solid var(--co);">🔔</div>
+          <div><div class="xtn" style="color:var(--co);">1st Notification</div><div class="xtx">1:00 PM · Standard push notification</div><span class="xpill" style="font-size:7px;">Push</span></div>
+        </div>
+        <div class="xts">
+          <div class="xtd" style="background:var(--al);border:1.5px solid var(--am);">🔊</div>
+          <div><div class="xtn">2nd Alarm (Louder)</div><div class="xtx">1:10 PM · Full-screen alarm, bypasses silent</div><span class="xpill am" style="font-size:7px;">Full-screen</span></div>
+        </div>
+        <div class="xts">
+          <div class="xtd" style="background:var(--bll);border:1.5px solid var(--bl);">📞</div>
+          <div><div class="xtn">Phone Call Reminder</div><div class="xtx">1:20 PM · Automated voice call (Hindi)</div><span class="xpill bl" style="font-size:7px;">Voice call</span></div>
+        </div>
+        <div class="xts">
+          <div class="xtd" style="background:var(--sl);border:1.5px solid var(--sg);">💚</div>
+          <div><div class="xtn">SMS to Caregiver</div><div class="xtx">1:25 PM · Priya (daughter) notified</div><span class="xpill sg" style="font-size:7px;">SMS + in-app</span></div>
+        </div>
+        <div style="display:flex;gap:6px;padding:0 7px;margin-top:auto;margin-bottom:8px;">
+          <div style="flex:1;height:26px;border-radius:8px;border:1.5px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--mt);">← Prev</div>
+          <div style="flex:1;height:26px;border-radius:8px;background:var(--co);display:flex;align-items:center;justify-content:center;font-size:9px;color:white;font-weight:700;">Next →</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">8</div><div class="slbl">Escalation Flow</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+</div>
+
+<div class="pftr"><span>SaathiPill · Daily Core Loop · Screens 6–8</span><span>Page 3 of 7</span></div>
+</div>
+
+<!-- ═══════════════════════════════
+     PAGE 4 — QUICK ADD ACTIONS
+═══════════════════════════════ -->
+<div class="page pb spage">
+<div class="shdr">
+  <div class="sbadge" style="background:var(--sg);">➕</div>
+  <div><div class="stitle">Quick Add Actions</div><div class="sdesc">All three actions triggered from the Home + FAB speed-dial: Add Medicine, Log Symptoms, Add Appointment → Reminder</div></div>
+</div>
+
+<div class="srow">
+  <!-- ⑨ Add Medicine -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;">
+        <div class="sb">9:41</div>
+        <div class="xhd"><div class="xbk">←</div><div><div class="xt">Add Medicine</div><div class="xs">Step 1 of 3 — What & how much</div></div></div>
+        <div class="xsteps"><div class="xst on"></div><div class="xst"></div><div class="xst"></div></div>
+        <span class="xlbl">Search medicine</span>
+        <div class="xinp on" style="margin-bottom:2px;font-size:8.5px;color:var(--tx);">Metformin 500mg</div>
+        <!-- Suggestions -->
+        <div style="margin:0 7px 5px;background:white;border-radius:8px;border:1px solid var(--bd);overflow:hidden;">
+          <div style="padding:5px 9px;border-bottom:1px solid var(--bd);font-size:8px;color:var(--co);font-weight:700;">Metformin 500mg ✓</div>
+          <div style="padding:4px 9px;border-bottom:1px solid var(--bd);font-size:8px;color:var(--mt);">Metformin 850mg</div>
+          <div style="padding:4px 9px;font-size:8px;color:var(--mt);">Metformin 1000mg</div>
+        </div>
+        <span class="xlbl">Dose</span>
+        <div class="xinp on">1 tablet</div>
+        <span class="xlbl">Schedule</span>
+        <div style="display:flex;gap:3px;padding:0 7px;margin-bottom:4px;">
+          <div class="xchip on">Daily</div><div class="xchip">Weekly</div><div class="xchip">Cyclic</div>
+        </div>
+        <span class="xlbl">Time of day</span>
+        <div style="display:flex;gap:3px;padding:0 7px;margin-bottom:4px;">
+          <div class="xchip on">☀️ Morning</div><div class="xchip">🌤 Noon</div><div class="xchip">🌙 Night</div>
+        </div>
+        <span class="xlbl">Meal timing</span>
+        <div style="display:flex;gap:3px;padding:0 7px;margin-bottom:6px;">
+          <div class="xchip">Before</div><div class="xchip on">After</div><div class="xchip">Empty</div>
+        </div>
+        <div class="xbtn" style="border-radius:9px;height:27px;font-size:9.5px;margin-top:auto;margin-bottom:6px;">Next →</div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">9</div><div class="slbl">Add Medicine</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr soft">·</div>
+
+  <!-- ⑩ Log Symptoms -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;">
+        <div class="sb">9:41</div>
+        <div style="padding:5px 9px 6px;border-bottom:1px solid var(--bd);background:white;display:flex;align-items:center;gap:5px;">
+          <div class="xbk">←</div>
+          <div><div class="xt">How are you feeling?</div><div class="xs">Logged at 1:32 PM</div></div>
+        </div>
+        <div style="flex:1;overflow:hidden;padding:6px 0 0;">
+          <span class="xlbl">Overall mood</span>
+          <div class="xmdr" style="margin-bottom:7px;">
+            <div class="xmdb"><div class="xme">😀</div><div class="xml">Great</div></div>
+            <div class="xmdb on"><div class="xme">🙂</div><div class="xml">OK</div></div>
+            <div class="xmdb"><div class="xme">😐</div><div class="xml">Meh</div></div>
+            <div class="xmdb"><div class="xme">😕</div><div class="xml">Off</div></div>
+            <div class="xmdb"><div class="xme">😣</div><div class="xml">Rough</div></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;padding:0 7px;margin-bottom:4px;"><span class="xlbl" style="padding:0;margin:0;">Symptoms</span><span style="font-size:7px;color:var(--mt);">Tap all that apply</span></div>
+          <div style="display:flex;flex-wrap:wrap;gap:3px;padding:0 7px;margin-bottom:7px;">
+            <div class="xchip on">🤕 Headache</div>
+            <div class="xchip on">🤢 Nausea</div>
+            <div class="xchip">💫 Dizzy</div>
+            <div class="xchip">😴 Fatigue</div>
+            <div class="xchip">🌡️ Fever</div>
+            <div class="xchip">⚡ Pain</div>
+          </div>
+          <span class="xlbl">Severity</span>
+          <div style="display:flex;gap:3px;padding:0 7px;margin-bottom:7px;">
+            <div style="flex:1;height:22px;border-radius:6px;background:var(--sg);display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;color:white;">1</div>
+            <div style="flex:1;height:22px;border-radius:6px;background:var(--am);display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;color:white;">2</div>
+            <div style="flex:1;height:22px;border-radius:6px;background:var(--co);display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;color:white;">3</div>
+            <div style="flex:1;height:22px;border-radius:6px;background:var(--wg);display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;color:var(--mt);">4</div>
+            <div style="flex:1;height:22px;border-radius:6px;background:var(--wg);display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;color:var(--mt);">5</div>
+          </div>
+          <span class="xlbl">Notes (optional)</span>
+          <div style="margin:0 7px 0;height:32px;border-radius:8px;border:1px solid var(--bd);background:white;padding:5px 8px;font-size:7.5px;color:var(--mt);">Headache after morning dose...</div>
+        </div>
+        <div style="padding:6px 7px 8px;border-top:1px solid var(--bd);background:white;">
+          <div style="height:27px;border-radius:9px;background:var(--co);color:white;display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;">Save log · 2 symptoms</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">10</div><div class="slbl">Log Symptoms</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr soft">·</div>
+
+  <!-- ⑪ Add Appointment -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;">
+        <div class="sb">9:41</div>
+        <div style="padding:5px 9px 6px;border-bottom:1px solid var(--bd);background:white;display:flex;align-items:center;gap:5px;">
+          <div class="xbk">←</div>
+          <div><div class="xt">Doctor's appointment</div><div class="xs">We'll remind you ahead of time</div></div>
+        </div>
+        <div style="flex:1;overflow:hidden;padding:5px 0 0;">
+          <span class="xlbl">Doctor</span>
+          <div class="xinp on">Dr. Priya Sharma</div>
+          <span class="xlbl">Specialty</span>
+          <div style="display:flex;flex-wrap:wrap;gap:2px;padding:0 7px;margin-bottom:5px;">
+            <div class="xchip">🩺 GP</div><div class="xchip on">❤️ Cardio</div><div class="xchip">🧴 Derm</div><div class="xchip">🍬 Endo</div>
+          </div>
+          <span class="xlbl">Date</span>
+          <div class="xdstrip" style="margin-bottom:5px;">
+            <div class="xdi"><div class="xdd" style="color:var(--mt);">Today</div><div class="xdn" style="color:var(--tx);">28</div></div>
+            <div class="xdi"><div class="xdd" style="color:var(--mt);">Fri</div><div class="xdn" style="color:var(--tx);">29</div></div>
+            <div class="xdi on"><div class="xdd">Sat</div><div class="xdn">30</div></div>
+            <div class="xdi"><div class="xdd" style="color:var(--mt);">Sun</div><div class="xdn" style="color:var(--tx);">31</div></div>
+            <div class="xdi"><div class="xdd" style="color:var(--mt);">Mon</div><div class="xdn" style="color:var(--tx);">1</div></div>
+          </div>
+          <span class="xlbl">Time</span>
+          <div style="display:flex;flex-wrap:wrap;gap:3px;padding:0 7px;margin-bottom:5px;">
+            <div class="xchip">9:00 AM</div><div class="xchip">10:30 AM</div><div class="xchip on">3:30 PM</div><div class="xchip">4:45 PM</div>
+          </div>
+          <span class="xlbl">Location (optional)</span>
+          <div class="xinp" style="margin-bottom:5px;color:var(--mt);">Apollo Clinic, Indiranagar</div>
+          <span class="xlbl">Remind me</span>
+          <div style="display:flex;gap:3px;padding:0 7px;">
+            <div class="xchip">Off</div><div class="xchip">1 h</div><div class="xchip on">1 day</div><div class="xchip">2 days</div>
+          </div>
+        </div>
+        <div style="padding:6px 7px 8px;border-top:1px solid var(--bd);background:white;">
+          <div style="height:27px;border-radius:9px;background:var(--co);color:white;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:800;">Save · Sat May 30 at 3:30 PM</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">11</div><div class="slbl">Add Appointment</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+</div>
+
+<div style="height:12px;"></div>
+
+<!-- Row 2: Appointment Reminder -->
+<div class="srow">
+  <!-- ⑫ Appointment Reminder Modal -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:#6FA689;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px 14px;position:relative;overflow:hidden;">
+        <div style="position:absolute;width:200px;height:200px;border-radius:50%;background:rgba(255,255,255,0.09);top:-70px;right:-70px;"></div>
+        <div style="font-size:7.5px;font-weight:800;color:rgba(255,255,255,0.8);letter-spacing:0.14em;text-transform:uppercase;margin-bottom:5px;">Appointment Reminder</div>
+        <div style="width:58px;height:58px;border-radius:18px;background:rgba(255,255,255,0.18);display:flex;align-items:center;justify-content:center;font-size:28px;margin-bottom:10px;">🔔</div>
+        <div style="font-family:'Fraunces',serif;font-size:17px;font-weight:800;color:white;text-align:center;line-height:1.2;margin-bottom:2px;">Dr. Priya Sharma</div>
+        <div style="font-size:9px;color:rgba(255,255,255,0.8);margin-bottom:14px;">❤️ Cardiologist</div>
+        <!-- When -->
+        <div style="width:100%;background:rgba(255,255,255,0.16);border-radius:11px;padding:9px 11px;margin-bottom:5px;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;">📅</span>
+          <div><div style="font-size:7px;color:rgba(255,255,255,0.65);font-weight:700;text-transform:uppercase;letter-spacing:.06em;">When</div><div style="font-size:10.5px;font-weight:700;color:white;">Tomorrow · 3:30 PM</div></div>
+        </div>
+        <!-- Where -->
+        <div style="width:100%;background:rgba(255,255,255,0.16);border-radius:11px;padding:9px 11px;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:16px;">📍</span>
+          <div><div style="font-size:7px;color:rgba(255,255,255,0.65);font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Where</div><div style="font-size:10px;font-weight:600;color:white;">Apollo Clinic, Indiranagar</div></div>
+        </div>
+        <div style="width:100%;height:28px;border-radius:9px;background:white;color:#6FA689;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;gap:5px;margin-bottom:6px;">🧭 Get directions</div>
+        <div style="display:flex;gap:6px;width:100%;">
+          <div style="flex:1;height:26px;border-radius:9px;border:1.5px solid rgba(255,255,255,0.4);color:white;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;">Remind 1h</div>
+          <div style="flex:1;height:26px;border-radius:9px;border:1.5px solid rgba(255,255,255,0.4);color:white;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;">Dismiss</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">12</div><div class="slbl">Appointment Reminder</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr soft"></div>
+  <div style="flex:1;padding-top:10px;">
+    <div style="border:1px solid var(--bd);border-radius:10px;padding:10px 11px;background:var(--wg);">
+      <div style="font-size:8.5px;font-weight:800;color:var(--tx);margin-bottom:5px;">About this flow</div>
+      <div style="font-size:8px;color:var(--mt);line-height:1.55;">
+        Screen ⑫ is triggered either from the appointment card on Home (Preview button) or as a push notification reminder. The reminder lead time (1 h / 1 day / 2 days) is set during booking in Screen ⑪.
+      </div>
+    </div>
+  </div>
+  <div class="sarr soft"></div>
+  <div style="flex:1;"></div>
+</div>
+
+<div class="pftr"><span>SaathiPill · Quick Add Actions · Screens 9–12</span><span>Page 4 of 7</span></div>
+</div>
+
+<!-- ═══════════════════════════════
+     PAGE 5 — TRACKING & INSIGHTS
+═══════════════════════════════ -->
+<div class="page pb spage">
+<div class="shdr">
+  <div class="sbadge" style="background:var(--bl);">📊</div>
+  <div><div class="stitle">Tracking & Insights</div><div class="sdesc">Accessed from Home — AI Insights, Medication History calendar, Adherence Analytics charts</div></div>
+</div>
+
+<div class="srow">
+  <!-- ⑬ AI Insights -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;">
+        <div class="sb">9:41</div>
+        <div class="xhd"><div class="xbk">←</div><div><div class="xt">AI Insights</div><div class="xs">Personalised just for you</div></div><div style="margin-left:auto;width:28px;height:28px;border-radius:8px;background:var(--cl);display:flex;align-items:center;justify-content:center;font-size:14px;">🤖</div></div>
+        <!-- Intro card -->
+        <div style="margin:0 7px 5px;border-radius:10px;padding:7px 9px;background:linear-gradient(135deg,rgba(232,112,90,0.12),rgba(232,168,56,0.07));border:1px solid rgba(232,112,90,0.2);display:flex;gap:7px;">
+          <span style="font-size:16px;">✨</span>
+          <div><div style="font-size:8.5px;font-weight:700;color:var(--tx);margin-bottom:2px;">SaathiPill learns your habits</div><div style="font-size:7.5px;color:var(--mt);line-height:1.4;">Based on 3 weeks of data — personalised to you.</div></div>
+        </div>
+        <!-- Insight cards -->
+        <div class="xins"><div class="xia" style="background:var(--co);"></div><div style="font-size:8.5px;font-weight:700;color:var(--tx);margin-bottom:2px;">🤖 Smart timing suggestion</div><div style="font-size:7.5px;color:var(--mt);line-height:1.35;margin-bottom:5px;">Over 14 mornings you took Metformin ~20 min late. Shift reminder to 7:50 AM?</div><div style="display:flex;gap:5px;"><div style="flex:1;height:22px;border-radius:7px;background:var(--co);color:white;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;">🔔 Update time</div><div style="height:22px;padding:0 8px;border-radius:7px;border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:7.5px;color:var(--mt);">Dismiss</div></div></div>
+        <div class="xins"><div class="xia" style="background:var(--am);"></div><div style="font-size:8.5px;font-weight:700;color:var(--tx);margin-bottom:2px;">📅 Pattern detected</div><div style="font-size:7.5px;color:var(--mt);line-height:1.35;margin-bottom:5px;">Missed Friday evening Amlodipine 3 of last 4 weeks. Set louder Friday alert?</div><div style="display:flex;gap:5px;"><div style="flex:1;height:22px;border-radius:7px;background:var(--am);color:white;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;">📅 Set reminder</div><div style="height:22px;padding:0 8px;border-radius:7px;border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:7.5px;color:var(--mt);">Dismiss</div></div></div>
+        <div class="xins"><div class="xia" style="background:var(--bl);"></div><div style="font-size:8.5px;font-weight:700;color:var(--tx);margin-bottom:2px;">📈 Adherence improving!</div><div style="font-size:7.5px;color:var(--mt);line-height:1.35;margin-bottom:5px;">This month: 87% (up from 74%). BP stable at 128/82.</div><div style="display:flex;gap:5px;"><div style="flex:1;height:22px;border-radius:7px;background:var(--bl);color:white;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;">📊 See correlation</div><div style="height:22px;padding:0 8px;border-radius:7px;border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:7.5px;color:var(--mt);">Dismiss</div></div></div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">13</div><div class="slbl">AI Insights</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr soft">·</div>
+
+  <!-- ⑭ Medication History -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;">
+        <div class="sb">9:41</div>
+        <div class="xhd"><div class="xbk">←</div><div><div class="xt">Medication History</div><div class="xs">May 2026</div></div></div>
+        <div class="xcard" style="margin-bottom:5px;">
+          <!-- Legend -->
+          <div style="display:flex;gap:7px;margin-bottom:7px;flex-wrap:wrap;">
+            <div style="display:flex;align-items:center;gap:3px;"><div style="width:7px;height:7px;border-radius:50%;background:var(--sg);"></div><span style="font-size:7px;color:var(--mt);">Taken</span></div>
+            <div style="display:flex;align-items:center;gap:3px;"><div style="width:7px;height:7px;border-radius:50%;background:var(--am);"></div><span style="font-size:7px;color:var(--mt);">Late</span></div>
+            <div style="display:flex;align-items:center;gap:3px;"><div style="width:7px;height:7px;border-radius:50%;background:var(--rd);"></div><span style="font-size:7px;color:var(--mt);">Missed</span></div>
+            <div style="display:flex;align-items:center;gap:3px;"><div style="width:7px;height:7px;border-radius:50%;background:var(--bl);"></div><span style="font-size:7px;color:var(--mt);">Skipped</span></div>
+          </div>
+          <!-- Day labels -->
+          <div class="xcal" style="margin-bottom:3px;">
+            <div style="font-size:6.5px;color:var(--mt);font-weight:700;text-align:center;">S</div><div style="font-size:6.5px;color:var(--mt);font-weight:700;text-align:center;">M</div><div style="font-size:6.5px;color:var(--mt);font-weight:700;text-align:center;">T</div><div style="font-size:6.5px;color:var(--mt);font-weight:700;text-align:center;">W</div><div style="font-size:6.5px;color:var(--mt);font-weight:700;text-align:center;">T</div><div style="font-size:6.5px;color:var(--mt);font-weight:700;text-align:center;">F</div><div style="font-size:6.5px;color:var(--mt);font-weight:700;text-align:center;">S</div>
+          </div>
+          <!-- Calendar grid -->
+          <div class="xcal">
+            <div class="xcd f"></div><div class="xcd f"></div><div class="xcd f"></div><div class="xcd t">1</div><div class="xcd t">2</div><div class="xcd la">3</div><div class="xcd t">4</div>
+            <div class="xcd t">5</div><div class="xcd t">6</div><div class="xcd m">7</div><div class="xcd t">8</div><div class="xcd t">9</div><div class="xcd t">10</div><div class="xcd sk">11</div>
+            <div class="xcd t">12</div><div class="xcd t">13</div><div class="xcd t">14</div><div class="xcd la">15</div><div class="xcd t">16</div><div class="xcd t">17</div><div class="xcd t">18</div>
+            <div class="xcd t">19</div><div class="xcd t">20</div><div class="xcd t">21</div><div class="xcd m">22</div><div class="xcd t">23</div><div class="xcd t">24</div><div class="xcd t">25</div>
+            <div class="xcd t">26</div><div class="xcd t">27</div><div class="xcd p" style="border:1.5px solid var(--co);">28</div><div class="xcd f">29</div><div class="xcd f">30</div><div class="xcd f">31</div><div class="xcd f"></div>
+          </div>
+        </div>
+        <!-- Selected day detail -->
+        <div style="font-family:'Fraunces',serif;font-size:10px;font-weight:700;color:var(--tx);padding:0 7px;margin-bottom:3px;">28 May — Today</div>
+        <div class="xmed"><div class="xmi" style="background:var(--sl);">💊</div><div><div class="xmn">Metformin 500mg</div><div class="xmt">8:00 AM</div></div><span class="xpill sg" style="margin-left:auto;font-size:7px;">✓ Taken</span></div>
+        <div class="xmed"><div class="xmi" style="background:var(--al);">💊</div><div><div class="xmn">Telmisartan 40mg</div><div class="xmt">1:00 PM</div></div><span class="xpill" style="margin-left:auto;font-size:7px;">Pending</span></div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">14</div><div class="slbl">Medication History</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr soft">·</div>
+
+  <!-- ⑮ Adherence Analytics -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;">
+        <div class="sb">9:41</div>
+        <div class="xhd"><div class="xbk">←</div><div><div class="xt">Adherence Analytics</div></div></div>
+        <!-- Period toggle -->
+        <div style="display:flex;gap:3px;margin:0 7px 6px;background:var(--wg);padding:3px;border-radius:10px;">
+          <div style="flex:1;height:22px;border-radius:7px;background:white;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;color:var(--tx);">Weekly</div>
+          <div style="flex:1;height:22px;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;color:var(--mt);">Monthly</div>
+        </div>
+        <!-- Nav -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0 7px;margin-bottom:5px;">
+          <div style="font-size:8px;color:var(--mt);">←</div>
+          <div style="font-size:8.5px;font-weight:700;color:var(--tx);">19 – 25 May</div>
+          <div style="font-size:8px;color:var(--mt);">→</div>
+        </div>
+        <!-- Bar chart -->
+        <div class="xbars" style="margin-bottom:3px;">
+          <div class="xbar" style="height:100%;background:var(--sg);"></div>
+          <div class="xbar" style="height:80%;"></div>
+          <div class="xbar" style="height:100%;background:var(--sg);"></div>
+          <div class="xbar" style="height:60%;background:var(--am);"></div>
+          <div class="xbar" style="height:40%;background:var(--rd);"></div>
+          <div class="xbar" style="height:100%;background:var(--sg);"></div>
+          <div class="xbar" style="height:80%;"></div>
+        </div>
+        <div style="display:flex;padding:0 7px;margin-bottom:8px;">
+          <div style="flex:1;font-size:7px;color:var(--mt);text-align:center;">M</div><div style="flex:1;font-size:7px;color:var(--mt);text-align:center;">T</div><div style="flex:1;font-size:7px;color:var(--mt);text-align:center;">W</div><div style="flex:1;font-size:7px;color:var(--mt);text-align:center;">T</div><div style="flex:1;font-size:7px;color:var(--mt);text-align:center;font-weight:800;color:var(--rd);">F</div><div style="flex:1;font-size:7px;color:var(--mt);text-align:center;">S</div><div style="flex:1;font-size:7px;color:var(--mt);text-align:center;">S</div>
+        </div>
+        <!-- Stats row -->
+        <div style="display:flex;gap:5px;padding:0 7px;margin-bottom:8px;">
+          <div style="flex:1;background:white;border:1px solid var(--bd);border-radius:9px;padding:6px;text-align:center;"><div style="font-size:13px;font-weight:800;color:var(--sg);">80%</div><div style="font-size:7px;color:var(--mt);">This week</div></div>
+          <div style="flex:1;background:white;border:1px solid var(--bd);border-radius:9px;padding:6px;text-align:center;"><div style="font-size:13px;font-weight:800;color:var(--co);">74%</div><div style="font-size:7px;color:var(--mt);">Last week</div></div>
+          <div style="flex:1;background:white;border:1px solid var(--bd);border-radius:9px;padding:6px;text-align:center;"><div style="font-size:13px;font-weight:800;color:var(--am);">6</div><div style="font-size:7px;color:var(--mt);">Day streak</div></div>
+        </div>
+        <!-- Badges -->
+        <div style="font-family:'Fraunces',serif;font-size:10px;font-weight:700;color:var(--tx);padding:0 7px;margin-bottom:4px;">Streak badges</div>
+        <div style="display:flex;gap:3px;padding:0 7px;">
+          <div style="width:28px;height:28px;border-radius:8px;background:var(--sl);display:flex;align-items:center;justify-content:center;font-size:14px;">🌱</div>
+          <div style="width:28px;height:28px;border-radius:8px;background:var(--sl);display:flex;align-items:center;justify-content:center;font-size:14px;">⭐</div>
+          <div style="width:28px;height:28px;border-radius:8px;background:var(--sl);display:flex;align-items:center;justify-content:center;font-size:14px;">🔥</div>
+          <div style="width:28px;height:28px;border-radius:8px;background:var(--wg);opacity:0.4;display:flex;align-items:center;justify-content:center;font-size:14px;">🏆</div>
+          <div style="width:28px;height:28px;border-radius:8px;background:var(--wg);opacity:0.4;display:flex;align-items:center;justify-content:center;font-size:14px;">💎</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">15</div><div class="slbl">Adherence Analytics</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+</div>
+
+<div class="pftr"><span>SaathiPill · Tracking & Insights · Screens 13–15</span><span>Page 5 of 7</span></div>
+</div>
+
+<!-- ═══════════════════════════════
+     PAGE 6 — FAMILY & REFILLS
+═══════════════════════════════ -->
+<div class="page pb spage">
+<div class="shdr">
+  <div class="sbadge" style="background:var(--am);">👨‍👩‍👧</div>
+  <div><div class="stitle">Family & Refills</div><div class="sdesc">Family Circle tab, individual caregiver view, add family member, and Refills tab with low-stock ordering</div></div>
+</div>
+
+<div class="srow">
+  <!-- ⑯ Family Tab -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;position:relative;">
+        <div class="sb">9:41</div>
+        <div style="padding:5px 9px 4px;display:flex;align-items:center;justify-content:space-between;">
+          <div><div style="font-family:'Fraunces',serif;font-size:14px;font-weight:800;color:var(--tx);">Family Circle</div><div style="font-size:7.5px;color:var(--mt);">Managing 2 members</div></div>
+          <div style="width:26px;height:26px;border-radius:8px;background:var(--co);display:flex;align-items:center;justify-content:center;font-size:14px;color:white;">+</div>
+        </div>
+        <!-- Member cards -->
+        <div style="display:flex;align-items:center;gap:7px;padding:7px 9px;background:white;border-radius:10px;margin:0 7px 4px;border:1px solid var(--bd);">
+          <div style="width:34px;height:34px;border-radius:50%;background:var(--sl);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--sg);flex-shrink:0;">MK</div>
+          <div style="flex:1;">
+            <div style="font-size:9px;font-weight:700;color:var(--tx);">Mohan (Father)</div>
+            <div style="font-size:7.5px;color:var(--mt);">1 dose missed today</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:13px;font-weight:800;color:var(--rd);">60%</div>
+            <div style="font-size:7px;color:var(--mt);">adherence</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:7px;padding:7px 9px;background:white;border-radius:10px;margin:0 7px 4px;border:1px solid var(--bd);">
+          <div style="width:34px;height:34px;border-radius:50%;background:var(--sl);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:var(--sg);flex-shrink:0;">PS</div>
+          <div style="flex:1;">
+            <div style="font-size:9px;font-weight:700;color:var(--tx);">Pushpa (Mother)</div>
+            <div style="font-size:7.5px;color:var(--sg);">All doses taken ✓</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:13px;font-weight:800;color:var(--sg);">95%</div>
+            <div style="font-size:7px;color:var(--mt);">adherence</div>
+          </div>
+        </div>
+        <!-- Invite prompt -->
+        <div style="margin:4px 7px;padding:9px 10px;border:1.5px dashed var(--bd);border-radius:10px;display:flex;align-items:center;gap:7px;background:white;">
+          <div style="width:30px;height:30px;border-radius:50%;background:var(--wg);display:flex;align-items:center;justify-content:center;font-size:16px;">+</div>
+          <div><div style="font-size:8.5px;font-weight:700;color:var(--tx);">Add family member</div><div style="font-size:7.5px;color:var(--mt);">Invite via phone number</div></div>
+        </div>
+        <!-- Alert card for missed dose -->
+        <div style="margin:4px 7px;padding:9px 10px;background:#FDEAEA;border-radius:10px;border:1px solid rgba(224,82,82,0.2);">
+          <div style="font-size:8.5px;font-weight:700;color:var(--rd);margin-bottom:2px;">⚠️ Mohan missed 1:00 PM dose</div>
+          <div style="font-size:7.5px;color:var(--mt);">Telmisartan 40mg · SMS sent</div>
+          <div style="display:flex;gap:5px;margin-top:6px;">
+            <div style="flex:1;height:22px;border-radius:7px;background:var(--rd);color:white;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;">Call him</div>
+            <div style="flex:1;height:22px;border-radius:7px;border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:7.5px;color:var(--mt);">Dismiss</div>
+          </div>
+        </div>
+        <div class="xbnav">
+          <div class="xni"><span style="font-size:12px;">💊</span>Today</div>
+          <div class="xni on"><div class="xnd"></div>Family</div>
+          <div class="xni"><span style="font-size:12px;">🏪</span>Refills</div>
+          <div class="xni"><span style="font-size:12px;">👤</span>Profile</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">16</div><div class="slbl">Family Tab</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr">→</div>
+
+  <!-- ⑰ Caregiver View -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;">
+        <div class="sb">9:41</div>
+        <div class="xhd"><div class="xbk">←</div><div><div class="xt">Mohan (Father)</div><div class="xs">Caregiver view</div></div></div>
+        <!-- Adherence ring -->
+        <div style="display:flex;gap:9px;align-items:center;padding:6px 9px;background:white;margin:0 7px 5px;border-radius:10px;border:1px solid var(--bd);">
+          <div style="width:44px;height:44px;border-radius:50%;border:5px solid var(--rd);border-left-color:var(--bd);border-bottom-color:var(--bd);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--rd);flex-shrink:0;">60%</div>
+          <div>
+            <div style="font-size:8.5px;font-weight:700;color:var(--tx);">This month</div>
+            <div style="font-size:7.5px;color:var(--mt);">3 doses missed · 1 skipped</div>
+            <span class="xpill rd" style="font-size:7px;margin-top:3px;">Needs attention</span>
+          </div>
+        </div>
+        <!-- Today's meds for this person -->
+        <div style="font-family:'Fraunces',serif;font-size:10px;font-weight:700;color:var(--tx);padding:0 7px;margin-bottom:3px;">Today's medicines</div>
+        <div class="xmed"><div class="xmi" style="background:var(--sl);">💊</div><div><div class="xmn">Metformin 500mg</div><div class="xmt">8:00 AM</div></div><div class="xcb on">✓</div></div>
+        <div class="xmed" style="border-color:rgba(224,82,82,0.3);background:#FEFAFA;"><div class="xmi" style="background:#FDEAEA;">💊</div><div><div class="xmn">Telmisartan 40mg</div><div class="xmt">1:00 PM · <span style="color:var(--rd);">Missed</span></div></div><span class="xpill rd" style="margin-left:auto;font-size:7px;">✗</span></div>
+        <div class="xmed"><div class="xmi" style="background:var(--wg);opacity:0.6;">💊</div><div><div class="xmn">Atorvastatin 10mg</div><div class="xmt">9:00 PM · Upcoming</div></div><span class="xpill mt" style="margin-left:auto;font-size:7px;">○</span></div>
+        <!-- Quick actions -->
+        <div style="display:flex;gap:5px;padding:0 7px;margin-top:5px;">
+          <div style="flex:1;height:26px;border-radius:8px;background:var(--co);color:white;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;">📞 Call</div>
+          <div style="flex:1;height:26px;border-radius:8px;border:1px solid var(--bd);background:white;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--mt);">📋 History</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">17</div><div class="slbl">Caregiver View</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr soft">·</div>
+
+  <!-- ⑱ Add Family Member -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;">
+        <div class="sb">9:41</div>
+        <div class="xhd"><div class="xbk">←</div><div><div class="xt">Add family member</div><div class="xs">Invite via SaathiPill</div></div></div>
+        <span class="xlbl">Their name</span>
+        <div class="xinp on">Priya (Daughter)</div>
+        <span class="xlbl">Mobile number</span>
+        <div class="xinp on">+91 99887 76543</div>
+        <span class="xlbl">Their role</span>
+        <div style="display:flex;gap:3px;padding:0 7px;margin-bottom:5px;">
+          <div class="xchip on">Caregiver</div><div class="xchip">Patient</div>
+        </div>
+        <span class="xlbl">Access level</span>
+        <div style="display:flex;flex-direction:column;gap:3px;padding:0 7px;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:8px;border:1.5px solid var(--co);background:var(--cl);">
+            <div style="width:14px;height:14px;border-radius:4px;background:var(--co);display:flex;align-items:center;justify-content:center;font-size:8px;color:white;flex-shrink:0;">✓</div>
+            <div style="font-size:8px;font-weight:700;color:var(--tx);">View my medicine schedule</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:8px;border:1.5px solid var(--co);background:var(--cl);">
+            <div style="width:14px;height:14px;border-radius:4px;background:var(--co);display:flex;align-items:center;justify-content:center;font-size:8px;color:white;flex-shrink:0;">✓</div>
+            <div style="font-size:8px;font-weight:700;color:var(--tx);">Get SMS when I miss a dose</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;padding:6px 8px;border-radius:8px;border:1.5px solid var(--bd);background:white;">
+            <div style="width:14px;height:14px;border-radius:4px;border:1.5px solid var(--bd);flex-shrink:0;"></div>
+            <div style="font-size:8px;color:var(--mt);">Edit my medicines</div>
+          </div>
+        </div>
+        <div class="xbtn" style="border-radius:9px;height:27px;margin-top:auto;margin-bottom:6px;font-size:9.5px;">✉️  Send invite</div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">18</div><div class="slbl">Add Family Member</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+</div>
+
+<div style="height:12px;"></div>
+
+<!-- Row 2: Refills Tab -->
+<div class="srow">
+  <!-- ⑲ Refills Tab -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;position:relative;">
+        <div class="sb">9:41</div>
+        <div style="padding:5px 9px 4px;"><div style="font-family:'Fraunces',serif;font-size:14px;font-weight:800;color:var(--tx);">Refills</div><div style="font-size:7.5px;color:var(--mt);">2 medicines running low</div></div>
+        <!-- Low stock cards -->
+        <div style="margin:0 7px 4px;background:white;border-radius:10px;border:1.5px solid rgba(224,82,82,0.25);padding:8px 9px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+            <div style="display:flex;align-items:center;gap:6px;"><div style="width:22px;height:22px;border-radius:6px;background:#FDEAEA;display:flex;align-items:center;justify-content:center;font-size:11px;">💊</div><div><div style="font-size:8.5px;font-weight:700;color:var(--tx);">Vitamin D3</div><div style="font-size:7.5px;color:var(--mt);">6 tablets left · ~6 days</div></div></div>
+            <span class="xpill rd" style="font-size:7px;">Low</span>
+          </div>
+          <div style="height:5px;border-radius:3px;background:var(--wg);margin-bottom:6px;"><div style="height:100%;width:20%;border-radius:3px;background:var(--rd);"></div></div>
+          <div style="display:flex;gap:4px;">
+            <div style="flex:1;height:22px;border-radius:7px;background:var(--co);color:white;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;">1mg</div>
+            <div style="flex:1;height:22px;border-radius:7px;background:var(--sg);color:white;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;">PharmEasy</div>
+            <div style="flex:1;height:22px;border-radius:7px;background:var(--bl);color:white;display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;">Apollo</div>
+          </div>
+        </div>
+        <div style="margin:0 7px 4px;background:white;border-radius:10px;border:1.5px solid rgba(232,168,56,0.3);padding:8px 9px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+            <div style="display:flex;align-items:center;gap:6px;"><div style="width:22px;height:22px;border-radius:6px;background:var(--al);display:flex;align-items:center;justify-content:center;font-size:11px;">💊</div><div><div style="font-size:8.5px;font-weight:700;color:var(--tx);">Metformin 500mg</div><div style="font-size:7.5px;color:var(--mt);">14 tablets left · ~14 days</div></div></div>
+            <span class="xpill am" style="font-size:7px;">2 wks</span>
+          </div>
+          <div style="height:5px;border-radius:3px;background:var(--wg);margin-bottom:6px;"><div style="height:100%;width:47%;border-radius:3px;background:var(--am);"></div></div>
+          <div style="display:flex;gap:4px;">
+            <div style="flex:1;height:22px;border-radius:7px;background:var(--wg);color:var(--mt);display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;">1mg</div>
+            <div style="flex:1;height:22px;border-radius:7px;background:var(--wg);color:var(--mt);display:flex;align-items:center;justify-content:center;font-size:7.5px;font-weight:700;">PharmEasy</div>
+          </div>
+        </div>
+        <div class="xbnav">
+          <div class="xni"><span style="font-size:12px;">💊</span>Today</div>
+          <div class="xni"><span style="font-size:12px;">👨‍👩‍👧</span>Family</div>
+          <div class="xni on"><div class="xnd"></div>Refills</div>
+          <div class="xni"><span style="font-size:12px;">👤</span>Profile</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">19</div><div class="slbl">Refills Tab</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr soft"></div>
+  <div style="flex:1;padding-top:8px;">
+    <div style="border:1px solid var(--bd);border-radius:10px;padding:10px 11px;background:var(--wg);">
+      <div style="font-size:8.5px;font-weight:800;color:var(--tx);margin-bottom:4px;">Refills logic</div>
+      <div style="font-size:8px;color:var(--mt);line-height:1.55;">Pills are tracked based on daily usage set during Add Medicine (Screen ⑨). When projected days remaining falls below threshold, the card appears in Refills with order links. Users can optionally link a pharmacy code for auto-reminders.</div>
+    </div>
+  </div>
+  <div class="sarr soft"></div>
+  <div style="flex:1;"></div>
+</div>
+
+<div class="pftr"><span>SaathiPill · Family & Refills · Screens 16–19</span><span>Page 6 of 7</span></div>
+</div>
+
+<!-- ═══════════════════════════════
+     PAGE 7 — REPORTS & SETTINGS
+═══════════════════════════════ -->
+<div class="page spage">
+<div class="shdr">
+  <div class="sbadge" style="background:var(--mt);">⚙️</div>
+  <div><div class="stitle">Reports, Profile & Edge Cases</div><div class="sdesc">Doctor Report PDF export, Profile & Settings, and Offline mode indicator</div></div>
+</div>
+
+<div class="srow">
+  <!-- ⑳ Doctor Report -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;">
+        <div class="sb">9:41</div>
+        <div class="xhd"><div class="xbk">←</div><div><div class="xt">Doctor Report</div><div class="xs">Share with your physician</div></div></div>
+        <!-- Report header -->
+        <div style="margin:0 7px 5px;background:linear-gradient(135deg,var(--cl),var(--al));border-radius:10px;padding:9px 10px;border:1px solid rgba(232,112,90,0.2);">
+          <div style="font-size:8.5px;font-weight:800;color:var(--tx);">Shreyas Kumar · May 2026</div>
+          <div style="font-size:7.5px;color:var(--mt);margin-top:2px;">Diabetes · Hypertension · 4 medicines</div>
+          <div style="display:flex;gap:5px;margin-top:6px;">
+            <span class="xpill sg" style="font-size:7px;">87% adherence</span>
+            <span class="xpill am" style="font-size:7px;">6-day streak</span>
+          </div>
+        </div>
+        <!-- Sections -->
+        <div class="xcard" style="margin-bottom:4px;">
+          <div style="font-size:8.5px;font-weight:700;color:var(--tx);margin-bottom:4px;">📊 Adherence by medicine</div>
+          <div style="display:flex;flex-direction:column;gap:3px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:7.5px;color:var(--mt);">Metformin 500mg</span><div style="display:flex;align-items:center;gap:4px;"><div style="width:50px;height:5px;border-radius:3px;background:var(--wg);"><div style="height:100%;width:95%;border-radius:3px;background:var(--sg);"></div></div><span style="font-size:7.5px;font-weight:700;color:var(--sg);">95%</span></div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:7.5px;color:var(--mt);">Telmisartan 40mg</span><div style="display:flex;align-items:center;gap:4px;"><div style="width:50px;height:5px;border-radius:3px;background:var(--wg);"><div style="height:100%;width:72%;border-radius:3px;background:var(--am);"></div></div><span style="font-size:7.5px;font-weight:700;color:var(--am);">72%</span></div></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-size:7.5px;color:var(--mt);">Atorvastatin 10mg</span><div style="display:flex;align-items:center;gap:4px;"><div style="width:50px;height:5px;border-radius:3px;background:var(--wg);"><div style="height:100%;width:88%;border-radius:3px;background:var(--sg);"></div></div><span style="font-size:7.5px;font-weight:700;color:var(--sg);">88%</span></div></div>
+          </div>
+        </div>
+        <div class="xcard" style="margin-bottom:6px;">
+          <div style="font-size:8.5px;font-weight:700;color:var(--tx);margin-bottom:3px;">🩹 Logged symptoms (May)</div>
+          <div style="font-size:7.5px;color:var(--mt);line-height:1.4;">Headache × 3 · Nausea × 1 · Mood: mostly OK</div>
+        </div>
+        <!-- CTA -->
+        <div style="display:flex;gap:5px;padding:0 7px;margin-top:auto;margin-bottom:6px;">
+          <div style="flex:1;height:27px;border-radius:9px;background:var(--co);color:white;display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:700;">📤 Share PDF</div>
+          <div style="flex:1;height:27px;border-radius:9px;border:1px solid var(--bd);display:flex;align-items:center;justify-content:center;font-size:8.5px;color:var(--mt);">Preview</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">20</div><div class="slbl">Doctor Report</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr soft">·</div>
+
+  <!-- ㉑ Profile & Settings -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;position:relative;">
+        <div class="sb">9:41</div>
+        <!-- Profile hero -->
+        <div style="padding:10px 9px 8px;display:flex;align-items:center;gap:10px;background:white;border-bottom:1px solid var(--bd);">
+          <div style="width:46px;height:46px;border-radius:50%;background:var(--cl);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">👤</div>
+          <div><div style="font-family:'Fraunces',serif;font-size:14px;font-weight:800;color:var(--tx);">Shreyas</div><div style="font-size:7.5px;color:var(--mt);">Age 55–64 · Diabetes · Hypertension</div><span class="xpill sg" style="font-size:7px;margin-top:3px;">87% this month</span></div>
+        </div>
+        <!-- Settings list -->
+        <div style="flex:1;overflow:hidden;">
+          <div style="font-size:7.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--mt);padding:7px 9px 4px;">Reminders</div>
+          <div style="display:flex;align-items:center;padding:7px 9px;border-bottom:1px solid var(--bd);background:white;"><span style="font-size:11px;margin-right:8px;">🔔</span><span style="font-size:8.5px;font-weight:600;color:var(--tx);flex:1;">Notification settings</span><span style="font-size:10px;color:var(--mt);">›</span></div>
+          <div style="display:flex;align-items:center;padding:7px 9px;border-bottom:1px solid var(--bd);background:white;"><span style="font-size:11px;margin-right:8px;">🌐</span><span style="font-size:8.5px;font-weight:600;color:var(--tx);flex:1;">Language — English</span><span style="font-size:10px;color:var(--mt);">›</span></div>
+          <div style="font-size:7.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--mt);padding:7px 9px 4px;">Account</div>
+          <div style="display:flex;align-items:center;padding:7px 9px;border-bottom:1px solid var(--bd);background:white;"><span style="font-size:11px;margin-right:8px;">🏥</span><span style="font-size:8.5px;font-weight:600;color:var(--tx);flex:1;">Pharmacy code</span><span style="font-size:10px;color:var(--mt);">›</span></div>
+          <div style="display:flex;align-items:center;padding:7px 9px;border-bottom:1px solid var(--bd);background:white;"><span style="font-size:11px;margin-right:8px;">🔒</span><span style="font-size:8.5px;font-weight:600;color:var(--tx);flex:1;">Privacy & data</span><span style="font-size:10px;color:var(--mt);">›</span></div>
+          <div style="display:flex;align-items:center;padding:7px 9px;border-bottom:1px solid var(--bd);background:white;"><span style="font-size:11px;margin-right:8px;">💬</span><span style="font-size:8.5px;font-weight:600;color:var(--tx);flex:1;">Support & feedback</span><span style="font-size:10px;color:var(--mt);">›</span></div>
+          <div style="display:flex;align-items:center;padding:7px 9px;background:white;"><span style="font-size:11px;margin-right:8px;">🚪</span><span style="font-size:8.5px;font-weight:600;color:var(--rd);">Sign out</span></div>
+        </div>
+        <div class="xbnav">
+          <div class="xni"><span style="font-size:12px;">💊</span>Today</div>
+          <div class="xni"><span style="font-size:12px;">👨‍👩‍👧</span>Family</div>
+          <div class="xni"><span style="font-size:12px;">🏪</span>Refills</div>
+          <div class="xni on"><div class="xnd"></div>Profile</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">21</div><div class="slbl">Profile & Settings</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+
+  <div class="sarr soft">·</div>
+
+  <!-- ㉒ Offline State -->
+  <div class="sunit">
+    <div class="ph">
+      <div class="ntch"></div>
+      <div style="height:100%;background:var(--cr);display:flex;flex-direction:column;position:relative;">
+        <!-- Offline banner -->
+        <div style="background:#3D2C20;color:white;padding:5px 9px;font-size:7.5px;font-weight:700;text-align:center;display:flex;align-items:center;justify-content:center;gap:5px;z-index:10;">
+          <div style="width:6px;height:6px;border-radius:50%;background:#FBBF24;flex-shrink:0;"></div>
+          You're offline — reminders & saved data still work
+        </div>
+        <div class="sb">9:41</div>
+        <div style="padding:5px 9px 4px;display:flex;align-items:center;justify-content:space-between;">
+          <div><div style="font-family:'Fraunces',serif;font-size:13px;font-weight:800;color:var(--tx);">Shreyas 👋</div></div>
+          <div style="width:36px;height:36px;border-radius:50%;border:4px solid var(--sg);border-right-color:var(--bd);border-bottom-color:var(--bd);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:800;color:var(--sg);">80%</div>
+        </div>
+        <div style="margin:0 7px 5px;padding:8px 9px;background:#FEF3C7;border-radius:9px;border:1px solid rgba(217,119,6,0.2);display:flex;gap:7px;align-items:flex-start;">
+          <span style="font-size:14px;">📵</span>
+          <div><div style="font-size:8.5px;font-weight:700;color:#92400E;margin-bottom:2px;">Working offline</div><div style="font-size:7.5px;color:#B45309;line-height:1.4;">2 dose updates pending sync. All changes saved locally and will upload when you reconnect.</div></div>
+        </div>
+        <!-- Meds with pending sync indicators -->
+        <div class="xmed"><div class="xmi" style="background:var(--sl);">💊</div><div><div class="xmn">Metformin 500mg</div><div class="xmt">8:00 AM · After breakfast</div></div><div style="margin-left:auto;display:flex;align-items:center;gap:4px;"><div style="width:7px;height:7px;border-radius:50%;background:#FBBF24;"></div><div class="xcb on">✓</div></div></div>
+        <div class="xmed"><div class="xmi" style="background:var(--sl);">💊</div><div><div class="xmn">Amlodipine 5mg</div><div class="xmt">9:00 AM · After breakfast</div></div><div style="margin-left:auto;display:flex;align-items:center;gap:4px;"><div style="width:7px;height:7px;border-radius:50%;background:#FBBF24;"></div><div class="xcb on">✓</div></div></div>
+        <div class="xmed"><div class="xmi" style="background:var(--al);">💊</div><div><div class="xmn">Telmisartan 40mg</div><div class="xmt">1:00 PM · Before lunch</div></div><div class="xcb"></div></div>
+        <div style="margin:6px 7px 0;padding:6px 9px;background:white;border-radius:9px;border:1px solid var(--bd);display:flex;align-items:center;gap:6px;">
+          <span style="font-size:12px;">⏳</span>
+          <div style="font-size:7.5px;color:var(--mt);flex:1;line-height:1.3;">2 updates queued — will sync when back online</div>
+        </div>
+        <div class="xfab">+</div>
+        <div class="xbnav">
+          <div class="xni on"><div class="xnd"></div>Today</div>
+          <div class="xni"><span style="font-size:12px;">👨‍👩‍👧</span>Family</div>
+          <div class="xni"><span style="font-size:12px;">🏪</span>Refills</div>
+          <div class="xni"><span style="font-size:12px;">👤</span>Profile</div>
+        </div>
+      </div>
+    </div>
+    <div class="slrow"><div class="snum">22</div><div class="slbl">Offline State</div></div>
+    <div class="ann"><div class="ann-hdr">Notes / Feedback</div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div></div>
+  </div>
+</div>
+
+<div style="height:14px;"></div>
+
+<!-- General notes block -->
+<div style="border:1px solid var(--bd);border-radius:12px;padding:14px 16px;background:var(--wg);">
+  <div style="font-family:'Fraunces',serif;font-size:13px;font-weight:800;color:var(--tx);margin-bottom:8px;">Overall design notes</div>
+  <div style="display:flex;gap:14px;">
+    <div style="flex:1;">
+      <div class="ann-hdr">General feedback</div>
+      <div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div>
+    </div>
+    <div style="flex:1;">
+      <div class="ann-hdr">Priority changes before build</div>
+      <div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div>
+    </div>
+    <div style="flex:1;">
+      <div class="ann-hdr">Open questions / TBD</div>
+      <div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div><div class="ann-ln"></div>
+    </div>
+  </div>
+</div>
+
+<div class="pftr"><span>SaathiPill · Reports, Profile & Edge Cases · Screens 20–22</span><span>Page 7 of 7</span></div>
+</div>
+
+<!-- PRINT BUTTON (screen only) -->
+<div class="no-print" style="position:fixed;bottom:24px;right:24px;z-index:999;">
+  <button onclick="window.print()" style="padding:12px 22px;background:#E8705A;color:white;border:none;border-radius:12px;font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 16px rgba(232,112,90,0.4);">🖨 Print / Save PDF</button>
+</div>
+
+</body>
+</html>

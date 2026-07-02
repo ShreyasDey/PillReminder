@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=794" />
+<title>SaathiPill — UI Flow Map (Print)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<!-- Screens are pre-captured PNGs in screenshots/ — no live React render needed -->
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #1C1008;
+    --ink-soft: #5C4A3E;
+    --ink-mute: #8B7868;
+    --paper: #FAF6F0;
+    --paper-warm: #F5EFE5;
+    --rule: #D9CFC0;
+    --rule-soft: #E8DFD0;
+    --coral: #E8705A;
+    --coral-soft: #FBE7E0;
+    --sage: #7BB68F;
+    --amber: #D89A3D;
+    --blue: #4A7AB8;
+  }
+  html, body {
+    background: #38291C;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  body { padding: 24px 0; min-height: 100vh; }
+
+  /* ── Page (A4 portrait) ────────────────────────────── */
+  .sheet {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 auto 14px;
+    background: var(--paper);
+    padding: 16mm 14mm 14mm;
+    box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+    position: relative;
+    display: flex; flex-direction: column;
+    page-break-after: always;
+    break-after: page;
+  }
+  .sheet:last-child { page-break-after: auto; }
+
+  /* Page chrome */
+  .runner {
+    display: flex; align-items: baseline; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--ink-mute);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--rule);
+    margin-bottom: 7mm;
+  }
+  .runner .left { display: flex; gap: 14px; align-items: baseline; }
+  .runner .brand { color: var(--ink); font-weight: 700; letter-spacing: 0.14em; }
+  .runner .right { color: var(--ink-mute); }
+  .runner .page-no { color: var(--ink); font-weight: 600; }
+
+  /* ── Cover ─────────────────────────────────────────── */
+  .cover-h {
+    font-family: 'Fraunces', serif;
+    font-weight: 800;
+    font-size: 56px;
+    line-height: 1.02;
+    letter-spacing: -0.015em;
+    color: var(--ink);
+    margin-top: 6mm;
+  }
+  .cover-h em {
+    font-style: italic;
+    font-weight: 600;
+    color: var(--coral);
+  }
+  .cover-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    margin-top: 16px;
+  }
+  .cover-meta {
+    margin-top: 28px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border-top: 1px solid var(--ink);
+    border-bottom: 1px solid var(--rule);
+  }
+  .cover-meta > div {
+    padding: 14px 12px 14px 0;
+    border-right: 1px solid var(--rule-soft);
+  }
+  .cover-meta > div:last-child { border-right: 0; }
+  .cover-meta .k {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  .cover-meta .v {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-top: 4px;
+  }
+
+  /* Flow overview diagram on cover */
+  .flow-diagram {
+    margin-top: 24px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .flow-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: 4px;
+  }
+  .flow-column {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .flow-sect {
+    flex: 1;
+    border: 1px solid var(--rule);
+    background: var(--paper-warm);
+    border-radius: 4px;
+    padding: 10px 10px 12px;
+    min-height: 100%;
+  }
+  .flow-sect h3 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--coral);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 6px;
+    margin-bottom: 8px;
+  }
+  .flow-sect ol {
+    list-style: none;
+    counter-reset: item;
+  }
+  .flow-sect ol li {
+    counter-increment: item;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--ink);
+    padding: 5px 0 5px 22px;
+    position: relative;
+    border-bottom: 1px dotted var(--rule-soft);
+    line-height: 1.2;
+  }
+  .flow-sect ol li:last-child { border-bottom: 0; }
+  .flow-sect ol li::before {
+    content: counter(item, decimal-leading-zero);
+    position: absolute;
+    left: 0;
+    top: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5px;
+    font-weight: 700;
+    color: var(--ink-mute);
+    letter-spacing: 0.02em;
+  }
+  .flow-sect ol li.b::before { color: var(--coral); }
+
+  .legend {
+    margin-top: 18px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rule);
+    display: flex; gap: 22px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-sw {
+    width: 10px; height: 10px;
+    border: 1px solid var(--ink);
+    display: inline-block;
+  }
+  .legend-sw.coral { background: var(--coral); border-color: var(--coral); }
+  .legend-sw.paper { background: var(--paper-warm); }
+  .legend-sw.notes {
+    background: repeating-linear-gradient(to bottom, transparent 0, transparent 3px, var(--rule-soft) 3px, var(--rule-soft) 4px);
+  }
+
+  /* ── Section page header ───────────────────────────── */
+  .sect-head {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 7mm;
+  }
+  .sect-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--coral);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .sect-name {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    line-height: 1;
+  }
+  .sect-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--ink-mute);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    text-align: right;
+  }
+  .sect-tag em { color: var(--ink); font-style: normal; font-weight: 700; }
+
+  /* ── Screen grid ───────────────────────────────────── */
+  .screen-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6mm;
+    flex: 1;
+  }
+  .screen-grid.cols-1 { grid-template-columns: 1fr; }
+
+  /* ── Screen card ───────────────────────────────────── */
+  .scard {
+    border: 1px solid var(--ink);
+    background: #fff;
+    display: flex; flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .scard-head {
+    display: flex; align-items: stretch;
+    border-bottom: 1px solid var(--ink);
+    background: var(--paper-warm);
+  }
+  .scard-num {
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 6px 9px;
+    letter-spacing: 0.04em;
+    display: flex; align-items: center;
+  }
+  .scard-titles {
+    flex: 1;
+    padding: 4px 10px;
+    display: flex; flex-direction: column; justify-content: center;
+    min-width: 0;
+  }
+  .scard-name {
+    font-family: 'Fraunces', serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.1;
+  }
+  .scard-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5px;
+    color: var(--ink-mute);
+    letter-spacing: 0.06em;
+    text-transform: lowercase;
+    margin-top: 1px;
+  }
+  .scard-status {
+    padding: 0 9px;
+    display: flex; align-items: center;
+    border-left: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    color: var(--coral);
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  .scard-body {
+    display: flex; align-items: stretch;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  /* Phone preview ── pre-captured PNG */
+  .phone-stage {
+    width: 44mm;
+    flex: none;
+    height: 78mm;
+    background: var(--ink);
+    position: relative;
+    border-right: 1px solid var(--ink);
+    overflow: hidden;
+  }
+  .phone-inner {
+    position: absolute;
+    inset: 2mm 2mm 4mm 2mm;
+    overflow: hidden;
+    background: #FAF6F0;
+    border-radius: 4px;
+  }
+  .phone-inner img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+  }
+  .phone-label {
+    position: absolute;
+    bottom: 1mm;
+    left: 2mm; right: 2mm;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 6.5px;
+    color: rgba(255,255,255,0.55);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  /* Info column */
+  .scard-info {
+    flex: 1;
+    padding: 8px 10px;
+    display: flex; flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+  }
+  .info-block .lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin-bottom: 3px;
+  }
+  .info-block .purpose {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 10.5px;
+    font-weight: 500;
+    line-height: 1.32;
+    color: var(--ink);
+    text-wrap: pretty;
+  }
+  .info-block ul.actions {
+    list-style: none;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .info-block ul.actions li {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 9.5px;
+    line-height: 1.3;
+    color: var(--ink);
+    padding-left: 10px;
+    position: relative;
+  }
+  .info-block ul.actions li::before {
+    content: '›';
+    position: absolute;
+    left: 0; top: -1px;
+    color: var(--coral);
+    font-weight: 700;
+  }
+  .next-row {
+    display: flex; flex-wrap: wrap; gap: 4px 5px;
+  }
+  .next-pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    background: var(--paper-warm);
+    border: 1px solid var(--rule);
+    padding: 2px 6px;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+    border-radius: 3px;
+  }
+  .next-pill.terminal {
+    background: var(--ink);
+    color: var(--paper);
+    border-color: var(--ink);
+  }
+
+  /* Notes panel ── lined area for handwriting */
+  .scard-notes {
+    flex: 1;
+    min-height: 18mm;
+    padding: 6px 10px 8px;
+    position: relative;
+    background:
+      linear-gradient(transparent 0, transparent calc(100% - 1px), var(--rule) calc(100% - 1px)) no-repeat top left / 100% 22px,
+      repeating-linear-gradient(to bottom, transparent 0, transparent 21px, var(--rule-soft) 21px, var(--rule-soft) 22px);
+  }
+  .scard-notes .notes-lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    line-height: 22px;
+    margin-bottom: 0;
+  }
+  .scard-notes .review-row {
+    display: flex; gap: 12px; align-items: center;
+    position: absolute;
+    top: 4px; right: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    color: var(--ink-mute);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .checkbox {
+    display: inline-block;
+    width: 11px; height: 11px;
+    border: 1.2px solid var(--ink);
+    vertical-align: -2px;
+    margin-right: 4px;
+  }
+
+  /* ── Cover: surface group labels ───────────────────── */
+  .cover-group {
+    display: flex; align-items: center; gap: 10px;
+    margin: 4px 0 2px;
+  }
+  .cover-group .cg-name {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--ink);
+  }
+  .cover-group .cg-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8.5px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  .cover-group .cg-rule { flex: 1; height: 1px; background: var(--rule); }
+  .flow-sect.full { width: 100%; }
+  .flow-sect.full ol {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    column-gap: 18px;
+  }
+  .flow-sect.full ol li { border-bottom: 1px dotted var(--rule-soft); }
+
+  /* ── Pharmacy portal (landscape desktop) cards ─────── */
+  .portal-stack {
+    flex: 1;
+    display: flex; flex-direction: column;
+    gap: 6mm;
+  }
+  .dcard {
+    border: 1px solid var(--ink);
+    background: #fff;
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .dcard-head {
+    display: flex; align-items: stretch;
+    border-bottom: 1px solid var(--ink);
+    background: var(--paper-warm);
+  }
+  .desktop-stage {
+    width: 100%;
+    aspect-ratio: 1432 / 872;
+    background: #1B2538;
+    position: relative;
+    overflow: hidden;
+    border-bottom: 1px solid var(--ink);
+  }
+  .desktop-stage img {
+    display: block;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    object-position: top center;
+  }
+  .desktop-label {
+    position: absolute;
+    bottom: 5px; right: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7px;
+    color: rgba(255,255,255,0.6);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    background: rgba(27,37,56,0.6);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+  .dcard-info {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr;
+  }
+  .dcard-info > div {
+    padding: 9px 13px;
+    border-right: 1px solid var(--rule-soft);
+  }
+  .dcard-info > div:last-child { border-right: 0; }
+  .dnotes {
+    min-height: 16mm;
+    padding: 6px 13px 8px;
+    position: relative;
+    border-top: 1px solid var(--rule);
+    background:
+      linear-gradient(transparent 0, transparent calc(100% - 1px), var(--rule) calc(100% - 1px)) no-repeat top left / 100% 22px,
+      repeating-linear-gradient(to bottom, transparent 0, transparent 21px, var(--rule-soft) 21px, var(--rule-soft) 22px);
+  }
+  .dnotes .notes-lbl {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 7.5px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    line-height: 22px;
+  }
+  .dnotes .review-row {
+    display: flex; gap: 12px; align-items: center;
+    position: absolute;
+    top: 4px; right: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 8px;
+    color: var(--ink-mute);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* ── Print rules ───────────────────────────────────── */
+  @page { size: A4 portrait; margin: 0; }
+  @media print {
+    html, body {
+      background: #fff;
+      padding: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .sheet {
+      box-shadow: none;
+      margin: 0;
+      min-height: 297mm;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .phone-stage, .phone-inner, .phone-inner img,
+    .scard, .scard-head, .scard-body, .scard-notes,
+    .desktop-stage, .desktop-stage img,
+    .dcard, .dcard-head, .dcard-info, .dnotes {
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    img { max-width: none; }
+    .print-hide { display: none !important; }
+  }
+
+  /* Print button (screen only) */
+  .print-bar {
+    position: fixed;
+    top: 20px; right: 20px;
+    z-index: 999;
+    display: flex; gap: 8px;
+    align-items: center;
+    background: var(--paper);
+    border: 1px solid var(--ink);
+    padding: 8px 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  }
+  .print-bar button {
+    background: var(--ink);
+    color: var(--paper);
+    border: none;
+    padding: 6px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    cursor: pointer;
+  }
+  .print-bar button:hover { background: var(--coral); }
+  .print-bar .ct { color: var(--ink-mute); }
+
+  /* Hint to print engines to keep images crisp */
+  img { image-rendering: -webkit-optimize-contrast; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+// ─────────────────────────────────────────────────────────────
+//  SCREEN MAP — data model
+// ─────────────────────────────────────────────────────────────
+//
+// Each entry: { n, id, name, section, comp, props, purpose, actions, next, status }
+//
+// comp:   string name of a global component (loaded from screens-*.jsx)
+// props:  prop overrides; default mock data provided per screen below
+// status: optional badge — "approved", "draft", "review"
+// next:   array of next-screen IDs (for terminal flows, mark first as "↩ back")
+//
+
+const FLOW = [
+  // ── ONBOARDING ──────────────────────────────────────────
+  {
+    section: 'Onboarding & Setup',
+    sectionTag: '4 screens · first-run flow',
+    screens: [
+      {
+        n: '01', id: 'splash', name: 'Splash',
+        comp: 'SplashScreen',
+        props: { onDone: () => {} },
+        purpose: 'Brand intro; 2.2s auto-dismiss to auth.',
+        actions: ['Auto-progresses', 'No user action'],
+        next: ['Login / Sign Up'],
+      },
+      {
+        n: '02', id: 'auth', name: 'Login / Sign Up',
+        comp: 'AuthScreen',
+        props: { onLogin: () => {}, onSignUp: () => {}, showDemoHints: true },
+        purpose: 'Phone-number auth with OTP. Welcome / Login / Sign-Up modes.',
+        actions: ['Enter phone', 'Receive OTP', 'Continue → onboarding'],
+        next: ['Onboarding (new)', 'Home (returning)'],
+      },
+      {
+        n: '03', id: 'onboarding', name: 'Onboarding',
+        comp: 'OnboardingScreen',
+        props: { onDone: () => {} },
+        purpose: '4-slide value carousel — what SaathiPill does for the user & their family.',
+        actions: ['Swipe / tap Next', 'Skip available', '4 slides'],
+        next: ['Profile Setup'],
+      },
+      {
+        n: '04', id: 'profileSetup', name: 'Profile Setup',
+        comp: 'ProfileSetupScreen',
+        props: { onDone: () => {} },
+        purpose: 'Capture name, age, language. Trust-builder before reminders begin.',
+        actions: ['Name & age', 'Language picker (9)', 'Continue → Home'],
+        next: ['Home Dashboard'],
+      },
+    ],
+  },
+
+  // ── CORE: DAILY USE ─────────────────────────────────────
+  {
+    section: 'Core — Daily Use',
+    sectionTag: '5 screens · primary tab + add flows',
+    screens: [
+      {
+        n: '05', id: 'home', name: 'Home Dashboard',
+        status: 'PRIMARY',
+        comp: 'HomeScreen',
+        props: () => ({
+          onNavigate: () => {}, onAddMed: () => {}, onLogSymptoms: () => {},
+          onAddAppointment: () => {}, onReminderClick: () => {},
+          onAppointmentReminder: () => {}, userName: 'Shreyas',
+          isNewUser: false, userMeds: window.medicines, userAppointments: [],
+          onToggleMed: () => {}, pendingSync: {}, isOffline: false,
+        }),
+        purpose: 'Today\'s doses, next reminder, quick-add FAB. The home base — every session starts here.',
+        actions: ['Tap dose → mark taken', 'FAB → add med / symptom / appointment', 'Tap card → reminder modal'],
+        next: ['Add Medicine', 'Reminder Modal', 'Log Symptoms', 'Doctor Visit'],
+      },
+      {
+        n: '06', id: 'addMed', name: 'Add Medicine',
+        comp: 'AddMedicineScreen',
+        props: { onDone: () => {}, onClose: () => {} },
+        purpose: 'Two entry modes: photo-scan (OCR) or manual. 5-step flow ends in confirm.',
+        actions: ['Pick entry mode', 'Drug + dose', 'Schedule (daily / weekly / cyclic)', 'Meal timing', 'Confirm'],
+        next: ['Home (toast: ✓ added)'],
+      },
+      {
+        n: '07', id: 'logSymptoms', name: 'Log Symptoms',
+        comp: 'LogSymptomsScreen',
+        props: { onClose: () => {}, onDone: () => {} },
+        purpose: 'Capture mood + symptoms in <30s. Feeds Doctor Report.',
+        actions: ['Pick mood (5)', 'Tag symptoms', 'Severity slider', 'Save → history'],
+        next: ['Home (toast: ✓ logged)'],
+      },
+      {
+        n: '08', id: 'addAppointment', name: 'Add Doctor Visit',
+        comp: 'AddAppointmentScreen',
+        props: { onClose: () => {}, onDone: () => {} },
+        purpose: 'Schedule upcoming visits with specialty, date, time, reason, reminder lead.',
+        actions: ['Pick specialty', 'Date + time', 'Location + reason', 'Reminder lead-time'],
+        next: ['Home (appointment card appears)'],
+      },
+      {
+        n: '09', id: 'appointmentReminder', name: 'Appointment Reminder',
+        comp: 'AppointmentReminderModal',
+        props: {
+          appointment: {
+            doctor: 'Dr. Priya Sharma', specialty: 'cardio',
+            date: new Date(Date.now() + 86400000).toISOString(),
+            time: '3:30 PM', location: 'Apollo Clinic, Indiranagar',
+            reason: 'Follow-up on BP medication; ECG results review',
+            reminderLead: '1d',
+          },
+          onSnooze: () => {}, onDismiss: () => {}, onDirections: () => {},
+        },
+        purpose: 'Pre-appointment nudge with directions + snooze. Fires per user-set lead-time.',
+        actions: ['Get directions', 'Snooze 1hr', 'Dismiss'],
+        next: ['Home', 'Maps app (external)'],
+      },
+    ],
+  },
+
+  // ── REMINDERS ───────────────────────────────────────────
+  {
+    section: 'Reminders & Escalation',
+    sectionTag: '2 screens · the moment of truth',
+    screens: [
+      {
+        n: '10', id: 'reminder', name: 'Reminder Modal',
+        status: 'CRITICAL',
+        comp: 'ReminderModal',
+        props: () => ({
+          med: window.medicines[0],
+          onTaken: () => {}, onSnooze: () => {}, onSkip: () => {}, onEscalation: () => {},
+          snoozeCount: 0, snoozeCap: 3, isOffline: false,
+        }),
+        purpose: 'The dose-time modal. Big icon, big buttons. Snooze capped at 3 → escalation.',
+        actions: ['Mark Taken (primary)', 'Snooze 10min', 'Skip (with reason)', 'Need help → escalate'],
+        next: ['Home (taken)', 'Escalation (cap hit / help)'],
+      },
+      {
+        n: '11', id: 'escalation', name: 'Escalation Flow',
+        comp: 'EscalationScreen',
+        props: { onClose: () => {} },
+        purpose: 'Triggered when snooze cap reached or user taps "Need help". Auto-alerts caregivers.',
+        actions: ['Auto-SMS to family', '3-step progress', 'Caregiver acknowledges'],
+        next: ['Home (de-escalated)'],
+      },
+    ],
+  },
+
+  // ── TRACKING ────────────────────────────────────────────
+  {
+    section: 'Tracking & Insights',
+    sectionTag: '3 screens · history, analytics, AI',
+    screens: [
+      {
+        n: '12', id: 'insights', name: 'AI Insights',
+        comp: 'AIInsightsScreen',
+        props: { onClose: () => {} },
+        purpose: 'Pattern-detection: missed doses correlate with weekends, side-effect trends, etc.',
+        actions: ['Accept insight → schedule shift', 'Dismiss', 'Read more'],
+        next: ['Home'],
+      },
+      {
+        n: '13', id: 'history', name: 'Medication History',
+        comp: 'HistoryScreen',
+        props: { onClose: () => {}, isNewUser: false, userAppointments: [], userSymptoms: [] },
+        purpose: 'Per-day breakdown of taken/missed doses + logged symptoms + appointments.',
+        actions: ['Scroll by date', 'Tap day → detail', 'Filter by med'],
+        next: ['Home'],
+      },
+      {
+        n: '14', id: 'analytics', name: 'Adherence Analytics',
+        comp: 'AnalyticsScreen',
+        props: { onClose: () => {}, isNewUser: false },
+        purpose: 'Weekly / monthly adherence %, streaks, per-medicine breakdown. Doctor-friendly numbers.',
+        actions: ['Toggle weekly / monthly', 'Previous periods', 'Drill into med'],
+        next: ['Home', 'Doctor Report'],
+      },
+    ],
+  },
+
+  // ── FAMILY ──────────────────────────────────────────────
+  {
+    section: 'Family & Caregivers',
+    sectionTag: '3 screens · circle of care',
+    screens: [
+      {
+        n: '15', id: 'family', name: 'Family Tab',
+        comp: 'FamilyScreen',
+        props: { onNavigate: () => {}, isNewUser: false },
+        purpose: 'List of linked family with adherence %. Tap to view; toggle SMS alerts.',
+        actions: ['Tap member → detail', 'Toggle alerts', 'Add member'],
+        next: ['Caregiver View', 'Add Family'],
+      },
+      {
+        n: '16', id: 'caregiver', name: 'Caregiver View',
+        comp: 'CaregiverScreen',
+        props: {
+          member: { name: 'Mohan (Father)', initials: 'MK', pct: 60, status: '1 dose missed', color: '#E05252', bg: '#FDEAEA' },
+          onClose: () => {},
+        },
+        purpose: 'Read-only window into another user\'s schedule + adherence. WhatsApp nudge.',
+        actions: ['Send nudge (WA / SMS)', 'View their week', 'Call'],
+        next: ['Family Tab'],
+      },
+      {
+        n: '17', id: 'addFamily', name: 'Add Family Member',
+        comp: 'AddFamilyMemberScreen',
+        props: { onClose: () => {}, onAdded: () => {}, userName: 'Shreyas' },
+        purpose: 'Two paths: QR-scan (in person) or phone-invite (SMS link).',
+        actions: ['Choose QR or phone', 'Send invite', 'Pending state'],
+        next: ['Family Tab (toast: ✓ sent)'],
+      },
+    ],
+  },
+
+  // ── REFILLS ─────────────────────────────────────────────
+  {
+    section: 'Refills & Pharmacy',
+    sectionTag: '2 screens · supply chain',
+    screens: [
+      {
+        n: '18', id: 'refills', name: 'Refills Tab',
+        comp: 'RefillsScreen',
+        props: { onNavigate: () => {} },
+        purpose: 'Low-stock alerts with days-remaining, price comparison, offers from partner pharmacies.',
+        actions: ['Tap → reorder', 'Compare pharmacies', 'Set auto-refill'],
+        next: ['Pharmacy Banner', 'Home'],
+      },
+      {
+        n: '19', id: 'pharmacy', name: 'Pharmacy Banner',
+        comp: 'PharmacyBannerScreen',
+        props: { onClose: () => {} },
+        purpose: 'Partner-pharmacy detail with discount, address, hours, order CTA.',
+        actions: ['Order now', 'Call pharmacy', 'Directions', 'Save partner'],
+        next: ['Refills (ordered state)'],
+      },
+    ],
+  },
+
+  // ── MORE ────────────────────────────────────────────────
+  {
+    section: 'Reports, Settings & Edge States',
+    sectionTag: '4 screens · supporting',
+    screens: [
+      {
+        n: '20', id: 'report', name: 'Doctor Report',
+        comp: 'DoctorReportScreen',
+        props: { onClose: () => {}, userName: 'Shreyas', userSymptoms: [], onLogSymptoms: () => {} },
+        purpose: 'Shareable adherence + symptom report. PDF / WhatsApp share for doctor visits.',
+        actions: ['Share as PDF', 'WhatsApp share', 'Filter date range'],
+        next: ['Doctor (external)', 'Home'],
+      },
+      {
+        n: '21', id: 'interactions', name: 'Drug Interactions',
+        comp: 'InteractionsScreen',
+        props: { onClose: () => {} },
+        purpose: 'Cross-medication interaction warnings, severity-coded. Tap for plain-language explanation.',
+        actions: ['Tap → detail', 'Dismiss low-severity', 'Call doctor'],
+        next: ['Home'],
+      },
+      {
+        n: '22', id: 'profile', name: 'Profile & Settings',
+        comp: 'ProfileScreen',
+        props: { onNavigate: () => {}, userName: 'Shreyas' },
+        purpose: 'Account, language, notifications, SMS alerts, data export, sign-out.',
+        actions: ['Toggle notif kinds', 'Switch language', 'Export data', 'Sign out'],
+        next: ['Home'],
+      },
+      {
+        n: '23', id: 'offline', name: 'Offline State',
+        comp: 'OfflineScreen',
+        props: { onClose: () => {} },
+        purpose: 'Full-screen offline notice. Confirms reminders & local data still work; sync resumes on reconnect.',
+        actions: ['Retry connection', 'Continue offline'],
+        next: ['Previous screen (on reconnect)'],
+      },
+    ],
+  },
+];
+
+// ─────────────────────────────────────────────────────────────
+//  PHARMACY PORTAL — data model (desktop / web)
+// ─────────────────────────────────────────────────────────────
+
+const PORTAL = [
+  {
+    n: 'P1', id: 'dashboard', name: 'Dashboard', status: 'PRIMARY',
+    purpose: 'Daily command centre: pending refills, today\'s orders, active patients, monthly revenue, an urgent-attention queue, and a live activity feed.',
+    actions: ['View / prepare refill on flagged patient', 'Confirm pending orders', 'Send SMS nudge', 'New refill', 'Export day report'],
+    next: ['Patient Detail', 'Refill Queue', 'New-refill modal'],
+  },
+  {
+    n: 'P2', id: 'patients', name: 'Patients',
+    purpose: 'Searchable, filterable directory of all linked patients — condition, adherence %, med count, last refill and lifetime spend at a glance.',
+    actions: ['Search by name / condition / phone', 'Filter & sort', 'Open a patient', 'Export CSV'],
+    next: ['Patient Detail'],
+  },
+  {
+    n: 'P3', id: 'patientDetail', name: 'Patient Detail',
+    purpose: 'Full patient record (example: Anil Malhotra) — current medicines, 90-day adherence trend, prescription on file, family link. The pharmacist can push new meds straight to the patient\'s app.',
+    actions: ['Add medicine to app', 'Send SMS', 'Prepare refill', 'View prescription', 'Call patient'],
+    next: ['Add-medicine modal', 'SMS modal', 'Patients'],
+  },
+  {
+    n: 'P4', id: 'prescribe', name: 'Add Medicine to App',
+    purpose: 'Opened from a patient record (here, Anil Malhotra). The pharmacist builds a prescription — drug, dose, timing, food relation, duration — and pushes it into the patient\'s SaathiPill reminders; they\'re notified instantly.',
+    actions: ['Enter drug + dose', 'Pick times / add custom time', 'Set food relation & duration', 'Add another medicine', 'Send to patient\'s app'],
+    next: ['Patient Detail (toast: ✓ sent)'],
+  },
+  {
+    n: 'P5', id: 'refills', name: 'Refill Queue',
+    purpose: 'Incoming refill orders grouped by stage — pending, today\'s, home delivery, ready for pickup. The pharmacist works the queue end to end.',
+    actions: ['Confirm order', 'Decline (with reason)', 'Mark delivered', 'Manual order', 'Print labels'],
+    next: ['Decline modal', 'New-refill modal'],
+  },
+  {
+    n: 'P6', id: 'inventory', name: 'Inventory & Stock',
+    purpose: 'Stock levels across the catalogue with reorder thresholds, out-of-stock and low-stock alerts, supplier and pricing per medicine.',
+    actions: ['Add medicine', 'Adjust stock', 'Reorder', 'Filter by stock status'],
+    next: ['—'],
+  },
+  {
+    n: 'P7', id: 'offers', name: 'Offers & Promotions',
+    purpose: 'Create a discount offer that\'s pushed to linked patients, with a live price preview and an estimate of how many patients it will reach.',
+    actions: ['Set discount %', 'Set validity window', 'Activate → notify patients'],
+    next: ['Dashboard (offer goes live)'],
+  },
+  {
+    n: 'P8', id: 'analytics', name: 'Revenue & Analytics',
+    purpose: 'Monthly revenue trend with period comparison, plus top patients by lifetime value and top medicines sold this month.',
+    actions: ['Change date range', 'Download report', 'Drill into a metric'],
+    next: ['—'],
+  },
+  {
+    n: 'P9', id: 'partners', name: 'Pharmacy Codes',
+    purpose: 'The pharmacy\'s unique linking code and branch codes that patients enter in the SaathiPill app to auto-connect to this store.',
+    actions: ['Copy code', 'Add branch code', 'Edit code', 'View linked patients'],
+    next: ['—'],
+  },
+  {
+    n: 'P10', id: 'profile', name: 'Profile & Account',
+    purpose: 'Pharmacy account and owner details, business info and pharmacy code — editable, with save / discard.',
+    actions: ['Edit personal & pharmacy details', 'Update pharmacy code', 'Save changes'],
+    next: ['—'],
+  },
+];
+
+// ─────────────────────────────────────────────────────────────
+//  SCREEN PREVIEW — live render at scale
+// ─────────────────────────────────────────────────────────────
+
+function ScreenPreview({ id }) {
+  return <img src={`screenshots/scr-${id}.png?v=4`} alt={`screen ${id}`} />;
+}
+
+function PortalPreview({ id }) {
+  return <img src={`screenshots/portal-${id}.png?v=1`} alt={`portal ${id}`} />;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  PAGES
+// ─────────────────────────────────────────────────────────────
+
+function Runner({ left, right, page, total }) {
+  return (
+    <div className="runner">
+      <div className="left">
+        <span className="brand">SAATHIPILL · UI FLOW MAP</span>
+        <span>v2.0 · May 2026</span>
+        <span>{left}</span>
+      </div>
+      <div className="right">
+        <span className="page-no">{String(page).padStart(2, '0')}</span> / {String(total).padStart(2, '0')}
+      </div>
+    </div>
+  );
+}
+
+function CoverPage({ total }) {
+  return (
+    <div className="sheet">
+      <Runner left="Cover · Flow Overview" page={1} total={total} />
+
+      <div>
+        <div className="cover-sub">Print &middot; Office review &middot; Mark-up welcome</div>
+        <h1 className="cover-h">
+          UI flow map for <em>SaathiPill</em> — patient app &amp; pharmacy portal, every screen with space to mark up.
+        </h1>
+      </div>
+
+      <div className="cover-meta">
+        <div>
+          <div className="k">Status</div>
+          <div className="v">Post-approval</div>
+        </div>
+        <div>
+          <div className="k">Screens</div>
+          <div className="v">34 · app + portal</div>
+        </div>
+        <div>
+          <div className="k">Reviewer</div>
+          <div className="v">____________</div>
+        </div>
+        <div>
+          <div className="k">Date</div>
+          <div className="v">____________</div>
+        </div>
+      </div>
+
+      <div className="flow-diagram">
+        <div className="cover-group">
+          <span className="cg-name">Surface A — Patient App</span>
+          <span className="cg-rule" />
+          <span className="cg-meta">23 screens &middot; 7 sections &middot; mobile</span>
+        </div>
+        <div className="flow-column">
+          {FLOW.map((sec, i) => (
+            <div key={i} className="flow-sect">
+              <h3>{String(i + 1).padStart(2, '0')} &middot; {sec.section.split(' — ')[0].split(' & ')[0]}</h3>
+              <ol>
+                {sec.screens.map(s => (
+                  <li key={s.id} className={s.status ? 'b' : ''}>
+                    {s.name}
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ))}
+        </div>
+
+        <div className="cover-group" style={{ marginTop: '10px' }}>
+          <span className="cg-name">Surface B — Pharmacy Portal</span>
+          <span className="cg-rule" />
+          <span className="cg-meta">11 screens &middot; desktop / web</span>
+        </div>
+        <div className="flow-sect full">
+          <ol>
+            {PORTAL.map(s => (
+              <li key={s.id} className={s.status ? 'b' : ''}>{s.name}</li>
+            ))}
+          </ol>
+        </div>
+
+        <div className="legend">
+          <div className="legend-item"><span className="legend-sw coral" /> Primary / critical screen</div>
+          <div className="legend-item"><span className="legend-sw paper" /> Section group</div>
+          <div className="legend-item"><span className="legend-sw notes" /> Write feedback in the lined area on each card</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScreenCard({ s }) {
+  return (
+    <div className="scard">
+      <div className="scard-head">
+        <div className="scard-num">{s.n}</div>
+        <div className="scard-titles">
+          <div className="scard-name">{s.name}</div>
+          <div className="scard-id">id: {s.id}</div>
+        </div>
+        {s.status && <div className="scard-status">{s.status}</div>}
+      </div>
+
+      <div className="scard-body">
+        <div className="phone-stage">
+          <div className="phone-inner">
+            <ScreenPreview id={s.id} />
+          </div>
+          <div className="phone-label">scr {s.n}</div>
+        </div>
+
+        <div className="scard-info">
+          <div className="info-block">
+            <div className="lbl">Purpose</div>
+            <div className="purpose">{s.purpose}</div>
+          </div>
+
+          <div className="info-block">
+            <div className="lbl">User can</div>
+            <ul className="actions">
+              {s.actions.map((a, i) => <li key={i}>{a}</li>)}
+            </ul>
+          </div>
+
+          <div className="info-block">
+            <div className="lbl">Goes to</div>
+            <div className="next-row">
+              {s.next.map((n, i) => (
+                <span key={i} className={`next-pill${n.toLowerCase().includes('toast') || n.toLowerCase().includes('external') ? ' terminal' : ''}`}>
+                  {n}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="scard-notes">
+        <div className="review-row">
+          <span><span className="checkbox" />Approve</span>
+          <span><span className="checkbox" />Changes</span>
+        </div>
+        <div className="notes-lbl">Notes &amp; feedback</div>
+      </div>
+    </div>
+  );
+}
+
+function SectionPage({ sec, sectionIdx, totalSections, page, total, chunk, chunkCount }) {
+  const isMulti = chunkCount > 1;
+  return (
+    <div className="sheet">
+      <Runner
+        left={`Section ${String(sectionIdx + 1).padStart(2, '0')} / ${String(totalSections).padStart(2, '0')} · ${sec.section}`}
+        page={page}
+        total={total}
+      />
+      <div className="sect-head">
+        <div>
+          <div className="sect-num">Section {String(sectionIdx + 1).padStart(2, '0')} of {String(totalSections).padStart(2, '0')}{isMulti ? ` · Sheet ${chunk.idx + 1} of ${chunkCount}` : ''}</div>
+          <div className="sect-name">{sec.section}</div>
+        </div>
+        <div className="sect-tag">
+          <em>{chunk.items.length}</em> screens shown<br />
+          {sec.sectionTag}
+        </div>
+      </div>
+      <div className="screen-grid">
+        {chunk.items.map(s => <ScreenCard key={s.id} s={s} />)}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+//  PORTAL CARD / PAGE (landscape desktop, 2 per page)
+// ─────────────────────────────────────────────────────────────
+
+function PortalCard({ s }) {
+  return (
+    <div className="dcard">
+      <div className="dcard-head">
+        <div className="scard-num">{s.n}</div>
+        <div className="scard-titles">
+          <div className="scard-name">{s.name}</div>
+          <div className="scard-id">route: {s.id}</div>
+        </div>
+        {s.status && <div className="scard-status">{s.status}</div>}
+      </div>
+
+      <div className="desktop-stage">
+        <PortalPreview id={s.id} />
+        <div className="desktop-label">{s.n} · {s.id}</div>
+      </div>
+
+      <div className="dcard-info">
+        <div className="info-block">
+          <div className="lbl">Purpose</div>
+          <div className="purpose">{s.purpose}</div>
+        </div>
+        <div className="info-block">
+          <div className="lbl">User can</div>
+          <ul className="actions">
+            {s.actions.map((a, i) => <li key={i}>{a}</li>)}
+          </ul>
+        </div>
+        <div className="info-block">
+          <div className="lbl">Goes to</div>
+          <div className="next-row">
+            {s.next.map((n, i) => (
+              <span key={i} className={`next-pill${n.toLowerCase().includes('modal') || n === '—' ? '' : ''}`}>{n}</span>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="dnotes">
+        <div className="review-row">
+          <span><span className="checkbox" />Approve</span>
+          <span><span className="checkbox" />Changes</span>
+        </div>
+        <div className="notes-lbl">Notes &amp; feedback</div>
+      </div>
+    </div>
+  );
+}
+
+function PortalPage({ chunk, chunkCount, page, total }) {
+  return (
+    <div className="sheet">
+      <Runner
+        left={`Pharmacy Portal · Sheet ${chunk.idx + 1} of ${chunkCount}`}
+        page={page}
+        total={total}
+      />
+      <div className="sect-head">
+        <div>
+          <div className="sect-num">Surface B · Web (desktop)</div>
+          <div className="sect-name">Pharmacy Partner Portal</div>
+        </div>
+        <div className="sect-tag">
+          <em>11</em> screens total<br />
+          for partner pharmacies
+        </div>
+      </div>
+      <div className="portal-stack">
+        {chunk.items.map(s => <PortalCard key={s.id} s={s} />)}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+//  APP
+// ─────────────────────────────────────────────────────────────
+
+function chunkScreens(screens, size = 4) {
+  const out = [];
+  for (let i = 0; i < screens.length; i += size) {
+    out.push({ idx: out.length, items: screens.slice(i, i + size) });
+  }
+  return out;
+}
+
+function App() {
+  // Build a page list: cover + per-section page(s) + portal page(s)
+  const sectionPages = FLOW.flatMap((sec, sectionIdx) => {
+    const chunks = chunkScreens(sec.screens, 4);
+    return chunks.map(chunk => ({ sec, sectionIdx, chunk, chunkCount: chunks.length }));
+  });
+
+  const portalChunks = chunkScreens(PORTAL, 1);
+
+  const totalPages = 1 + sectionPages.length + portalChunks.length;
+
+  return (
+    <>
+      <div className="print-bar print-hide">
+        <span className="ct">{totalPages} pages · A4 portrait</span>
+        <button onClick={() => window.print()}>Print</button>
+      </div>
+
+      <CoverPage total={totalPages} />
+
+      {sectionPages.map((p, i) => (
+        <SectionPage
+          key={i}
+          {...p}
+          totalSections={FLOW.length}
+          page={i + 2}
+          total={totalPages}
+        />
+      ))}
+
+      {portalChunks.map((chunk, i) => (
+        <PortalPage
+          key={`portal-${i}`}
+          chunk={chunk}
+          chunkCount={portalChunks.length}
+          page={1 + sectionPages.length + i + 1}
+          total={totalPages}
+        />
+      ))}
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>

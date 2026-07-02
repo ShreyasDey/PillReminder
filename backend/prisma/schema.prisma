@@ -1,0 +1,314 @@
+// SaathiPill — data model
+// Money is stored as integer paise everywhere (display formatting happens in the UI).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  patient
+  pharmacist
+}
+
+enum DoseStatus {
+  pending
+  taken
+  skipped
+  missed
+}
+
+enum Schedule {
+  daily
+  weekly
+  cyclic
+}
+
+enum CourseType {
+  ongoing
+  fixed
+}
+
+enum PushStatus {
+  pending
+  accepted
+  dismissed
+}
+
+enum RefillStatus {
+  pending
+  confirmed
+  ready
+  delivered
+  declined
+}
+
+enum LinkStatus {
+  invited
+  active
+  declined
+  revoked
+}
+
+model Pharmacy {
+  id           String         @id @default(cuid())
+  name         String
+  location     String?
+  hours        String?        // e.g. "8 AM – 10 PM"
+  lat          Float?         // for distance-based discovery
+  lng          Float?
+  code         String         @unique // ^[A-Z0-9]{4}-[A-Z0-9]{5}$
+  createdAt    DateTime       @default(now())
+  staff        User[]
+  inventory    InventoryItem[]
+  dispenses    Dispense[]
+  pushes       PharmacyPush[]
+  offers       Offer[]
+  refills      RefillOrder[]
+}
+
+model User {
+  id            String          @id @default(cuid())
+  phone         String          @unique
+  name          String
+  role          Role            @default(patient)
+  pharmacyId    String?
+  pharmacy      Pharmacy?       @relation(fields: [pharmacyId], references: [id])
+  createdAt     DateTime        @default(now())
+
+  profile       PatientProfile?
+  refreshTokens RefreshToken[]
+  medications   Medication[]
+  symptomLogs   SymptomLog[]
+  appointments  Appointment[]
+  refillOrders  RefillOrder[]
+  dispenses     Dispense[]
+  pushes        PharmacyPush[]
+  notifications Notification[]
+  pushSubs      PushSubscription[]
+  familyOwned   FamilyLink[]    @relation("FamilyOwner")
+  familyMember  FamilyLink[]    @relation("FamilyMember")
+}
+
+// Browser Web Push subscription (one per device/browser the patient enables).
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model PatientProfile {
+  id                 String   @id @default(cuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  age                Int?
+  gender             String?
+  conditions         String[] @default([])
+  language           String   @default("English")
+  linkedPharmacyCode String?  // primary pharmacy (mirrors linkedPharmacyCodes[0])
+  linkedPharmacyCodes String[] @default([]) // a patient can link multiple pharmacies
+  updatedAt          DateTime @updatedAt
+}
+
+model OtpRequest {
+  id        String   @id @default(cuid())
+  phone     String
+  code      String
+  name      String?  // captured at signup so verify can create the user
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  consumed  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Medication {
+  id            String     @id @default(cuid())
+  patientId     String
+  patient       User       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  groupId       String     // links doses of one drug
+  doseIndex     Int        @default(1)
+  doseTotal     Int        @default(1)
+  drug          String
+  dose          String     @default("1 tablet")
+  time          String     // "8:00 AM"
+  meal          String?    // before|after|empty|bedtime (label stored)
+  schedule      Schedule   @default(daily)
+  weeklyDays    Int[]      @default([]) // 0=Sun..6=Sat
+  cyclicOn      Int?
+  cyclicOff     Int?
+  courseType    CourseType @default(ongoing)
+  courseDays    Int?
+  courseEndDate DateTime?
+  instructions  String?
+  source        Json?      // { type:'pharmacy', name, code } or null = self
+  active        Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+
+  doseLogs      DoseLog[]
+
+  @@index([patientId])
+}
+
+model DoseLog {
+  id            String     @id @default(cuid())
+  medicationId  String
+  medication    Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  date          String     // YYYY-MM-DD
+  scheduledTime String     // "8:00 AM"
+  status        DoseStatus @default(pending)
+  takenAt       DateTime?
+  skipReason    String?
+  skipExcluded  Boolean    @default(false)
+  snoozeCount   Int        @default(0)
+  pendingSync   Boolean    @default(false)
+  lastRemindedAt DateTime? // when we last fired a reminder for this dose
+  nextRemindAt   DateTime? // earliest next reminder (set by snooze)
+
+  @@unique([medicationId, date, scheduledTime])
+  @@index([date])
+}
+
+// A caregiver link. `owner` is the PATIENT (data subject) who created the link and
+// consents to share their data; `member` is the CAREGIVER who was invited and, once
+// they accept, may view/act on the owner's data according to `permissions`.
+// The caregiver is matched to the invite by `memberPhone` until they accept.
+model FamilyLink {
+  id            String     @id @default(cuid())
+  ownerId       String
+  owner         User       @relation("FamilyOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  memberId      String?
+  member        User?      @relation("FamilyMember", fields: [memberId], references: [id])
+  memberName    String
+  memberPhone   String?    // phone the invite was addressed to (used to match on accept)
+  relationship  String?
+  permissions   String[]   @default([]) // view_schedule | view_adherence | view_health | mark_doses | add_medicines
+  status        LinkStatus @default(invited)
+  createdAt     DateTime   @default(now())
+
+  @@index([ownerId])
+  @@index([memberId])
+  @@index([memberPhone])
+}
+
+model SymptomLog {
+  id        String   @id @default(cuid())
+  patientId String
+  patient   User     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  symptoms  String[] @default([])
+  mood      String?
+  note      String?
+  timestamp DateTime @default(now())
+}
+
+model Appointment {
+  id           String   @id @default(cuid())
+  patientId    String
+  patient      User     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctor       String
+  specialty    String?
+  date         DateTime
+  time         String
+  location     String?
+  reason       String?
+  reminderLead String?  // "1d", "2h", etc.
+  createdAt    DateTime @default(now())
+}
+
+model RefillOrder {
+  id            String       @id @default(cuid())
+  displayId     String       @unique // SP-1234
+  patientId     String
+  patient       User         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  pharmacyId    String?
+  pharmacy      Pharmacy?    @relation(fields: [pharmacyId], references: [id])
+  items         Json         // [{ med, qty }]
+  amount        Int          // paise
+  status        RefillStatus @default(pending)
+  declineReason String?
+  placedAt      DateTime     @default(now())
+}
+
+model InventoryItem {
+  id         String   @id @default(cuid())
+  pharmacyId String
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  name       String
+  stock      Int      @default(0)
+  demand7d   Int      @default(0)
+  mrp        Int      // paise
+  supplier   String?
+
+  @@unique([pharmacyId, name])
+}
+
+model Dispense {
+  id         String   @id @default(cuid())
+  pharmacyId String
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  patientId  String?
+  patient    User?    @relation(fields: [patientId], references: [id])
+  items      Json     // [{ name, qty, mrp }]
+  total      Int      // paise
+  offer      Json?    // { label, discount }
+  at         DateTime @default(now())
+}
+
+model PharmacyPush {
+  id           String     @id @default(cuid())
+  pharmacyId   String
+  pharmacy     Pharmacy   @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  patientId    String
+  patient      User       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  pharmacyName String
+  pharmacyCode String
+  meds         Json       // [Medication shape]
+  note         String?
+  status       PushStatus @default(pending)
+  pushedAt     DateTime   @default(now())
+}
+
+model Offer {
+  id         String   @id @default(cuid())
+  pharmacyId String
+  pharmacy   Pharmacy @relation(fields: [pharmacyId], references: [id], onDelete: Cascade)
+  label      String
+  discount   Int      // percent
+  reach      Int      @default(0)
+  expiry     DateTime?
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  title     String
+  body      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
