@@ -165,35 +165,41 @@ async function main() {
     });
   }
 
-  // ── Patients linked to the pharmacy ──
+  // ── Demo roster of patients linked to the pharmacy ──
+  // Off by default: a real pharmacy account starts with NO patients and fills up as
+  // people actually link via the app. Set SEED_DEMO_PATIENTS=1 to pre-populate the
+  // roster (Suresh, Lakshmi, …) for a fuller-looking demo portal.
+  const seedDemoRoster = process.env.SEED_DEMO_PATIENTS === "1";
   const patientIds: Record<string, string> = {};
-  for (const p of PATIENTS) {
-    const user = await prisma.user.upsert({
-      where: { phone: p.phone },
-      update: {},
-      create: {
-        phone: p.phone,
-        name: p.name,
-        role: "patient",
-        profile: {
-          create: { age: p.age, gender: p.gender, conditions: p.conditions, linkedPharmacyCode: PHARMACY_CODE },
+  if (seedDemoRoster) {
+    for (const p of PATIENTS) {
+      const user = await prisma.user.upsert({
+        where: { phone: p.phone },
+        update: {},
+        create: {
+          phone: p.phone,
+          name: p.name,
+          role: "patient",
+          profile: {
+            create: { age: p.age, gender: p.gender, conditions: p.conditions, linkedPharmacyCode: PHARMACY_CODE },
+          },
         },
-      },
-    });
-    patientIds[p.name] = user.id;
+      });
+      patientIds[p.name] = user.id;
 
-    // Real medications + dose history → the portal's adherence is computed, not faked.
-    const hasMeds = await prisma.medication.count({ where: { patientId: user.id } });
-    if (hasMeds === 0 && p.meds.length > 0) {
-      const medRows = [];
-      for (const [drug, dose, time] of p.meds) {
-        medRows.push(
-          await prisma.medication.create({
-            data: { patientId: user.id, groupId: crypto.randomUUID(), drug, dose, time },
-          }),
-        );
+      // Real medications + dose history → the portal's adherence is computed, not faked.
+      const hasMeds = await prisma.medication.count({ where: { patientId: user.id } });
+      if (hasMeds === 0 && p.meds.length > 0) {
+        const medRows = [];
+        for (const [drug, dose, time] of p.meds) {
+          medRows.push(
+            await prisma.medication.create({
+              data: { patientId: user.id, groupId: crypto.randomUUID(), drug, dose, time },
+            }),
+          );
+        }
+        if (p.adh != null) await seedHistory(medRows, p.adh, 60);
       }
-      if (p.adh != null) await seedHistory(medRows, p.adh, 60);
     }
   }
 

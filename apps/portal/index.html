@@ -1383,8 +1383,11 @@ function CreatePharmacy({ onCreated }) {
   const [code, setCode] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  const [coords, setCoords] = useState(null);   // { lat, lng } from device GPS
-  const [geo, setGeo] = useState('idle');        // idle | locating | ok | denied | nogeo
+  const [coords, setCoords] = useState(null);   // { lat, lng } from device GPS or manual pick
+  const [geo, setGeo] = useState('idle');        // idle | locating | ok | denied | nogeo | manual
+  const [locSearch, setLocSearch] = useState('');
+  const [locResults, setLocResults] = useState([]);
+  const [locSearching, setLocSearching] = useState(false);
 
   // Auto-detect the pharmacy's location from the device so patients can find it by distance.
   const captureLocation = () => {
@@ -1397,6 +1400,28 @@ function CreatePharmacy({ onCreated }) {
     );
   };
   useEffect(() => { captureLocation(); }, []);
+
+  // Manual location entry (Uber/Ola style) — used when GPS is denied/unavailable.
+  useEffect(() => {
+    if (!window.PortalAPI || !PortalAPI.enabled) return;
+    const q = locSearch.trim();
+    if (q.length < 3) { setLocResults([]); setLocSearching(false); return; }
+    setLocSearching(true);
+    const t = setTimeout(() => {
+      PortalAPI.geocode(q)
+        .then(res => setLocResults(Array.isArray(res) ? res : []))
+        .catch(() => setLocResults([]))
+        .finally(() => setLocSearching(false));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [locSearch]);
+
+  const pickPlace = (place) => {
+    setCoords({ lat: place.lat, lng: place.lng });
+    setGeo('manual');
+    if (!location.trim()) setLocation((place.label || '').split(',').slice(0, 2).join(',').trim());
+    setLocSearch(''); setLocResults([]);
+  };
 
   const fmtCode = (raw) => { let c = raw.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 9); return c.length > 4 ? c.slice(0, 4) + '-' + c.slice(4) : c; };
   const create = async () => {
@@ -1418,11 +1443,13 @@ function CreatePharmacy({ onCreated }) {
 
   const geoBox = {
     ok:       { bg: C.sageSoft, fg: C.sage, text: '📍 Location captured — patients nearby will find you' },
+    manual:   { bg: C.sageSoft, fg: C.sage, text: '📍 Location set — patients nearby will find you' },
     locating: { bg: C.creamWarm, fg: C.textMid, text: '📍 Detecting your location…' },
-    denied:   { bg: C.amberSoft, fg: '#8A6418', text: '⚠ Location blocked — patients won\'t find you by distance' },
-    nogeo:    { bg: C.amberSoft, fg: '#8A6418', text: '⚠ This device can\'t share location' },
+    denied:   { bg: C.amberSoft, fg: '#8A6418', text: '⚠ Location blocked — set it manually below' },
+    nogeo:    { bg: C.amberSoft, fg: '#8A6418', text: '⚠ Can\'t auto-detect — set your location manually below' },
     idle:     { bg: C.creamWarm, fg: C.textMid, text: '…' },
   }[geo];
+  const needsManualLoc = geo === 'denied' || geo === 'nogeo';
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.navyDeep }}>
@@ -1444,8 +1471,33 @@ function CreatePharmacy({ onCreated }) {
         {/* GPS status */}
         <div style={{ marginTop: 14, padding: '9px 12px', borderRadius: 8, background: geoBox.bg, color: geoBox.fg, fontSize: 12.5, fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <span>{geoBox.text}</span>
-          {(geo === 'denied' || geo === 'nogeo') && <button onClick={captureLocation} style={{ border: 'none', background: 'rgba(0,0,0,0.06)', borderRadius: 6, padding: '4px 8px', fontSize: 12, fontWeight: 700, cursor: 'pointer', color: 'inherit' }}>Retry</button>}
+          {(geo === 'denied' || geo === 'nogeo') && <button onClick={captureLocation} style={{ border: 'none', background: 'rgba(0,0,0,0.06)', borderRadius: 6, padding: '4px 8px', fontSize: 12, fontWeight: 700, cursor: 'pointer', color: 'inherit' }}>Use my location</button>}
         </div>
+
+        {/* Manual location search — shown when GPS is unavailable (Uber/Ola style) */}
+        {needsManualLoc && (
+          <div style={{ position: 'relative', marginTop: 10 }}>
+            <input
+              value={locSearch}
+              onChange={e => setLocSearch(e.target.value)}
+              placeholder="Search your area or address…"
+              spellCheck={false}
+              style={{ ...inp, marginTop: 0 }}
+            />
+            {(locSearch.trim().length >= 3) && (locSearching || locResults.length > 0) && (
+              <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: C.white, borderRadius: 8, border: `1px solid ${C.border}`, boxShadow: '0 8px 28px rgba(0,0,0,0.16)', zIndex: 50, overflow: 'hidden', maxHeight: 220, overflowY: 'auto' }}>
+                {locSearching && locResults.length === 0 ? (
+                  <div style={{ padding: '12px 14px', fontSize: 13, color: C.textMid }}>Searching…</div>
+                ) : locResults.map((r, i) => (
+                  <button key={i} onClick={() => pickPlace(r)} style={{ width: '100%', padding: '10px 14px', border: 'none', borderBottom: i < locResults.length - 1 ? `1px solid ${C.border}` : 'none', background: 'transparent', cursor: 'pointer', display: 'flex', gap: 8, alignItems: 'flex-start', textAlign: 'left', fontFamily: fonts.body }}>
+                    <span style={{ fontSize: 13, marginTop: 1 }}>📍</span>
+                    <span style={{ flex: 1, fontSize: 13, color: C.text, lineHeight: 1.4 }}>{r.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         <button onClick={create} disabled={busy} style={{ width: '100%', marginTop: 18, height: 44, border: 'none', borderRadius: 8, background: C.coral, color: '#fff', fontFamily: fonts.body, fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>{busy ? 'Creating…' : 'Create pharmacy'}</button>
         {err && <div style={{ marginTop: 12, color: C.red, fontSize: 13 }}>{err}</div>}

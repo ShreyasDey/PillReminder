@@ -71,7 +71,7 @@ function RefillOrderBuilder({ userMeds }) {
 
   // Load EVERY linked pharmacy's catalog so the patient can compare prices side by side.
   const [catalogs, setCatalogs] = React.useState({}); // code -> { byName, offer, name }
-  const [compareOpen, setCompareOpen] = React.useState(false);
+  const [compareOpen, setCompareOpen] = React.useState(true); // show multi-pharmacy prices by default
   const pharmCodes = pharmacies.map(p => p.code).join(',');
   React.useEffect(() => {
     if (!apiOn || !pharmacies.length) { setCatalogs({}); return; }
@@ -140,7 +140,13 @@ function RefillOrderBuilder({ userMeds }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [catalog]);
 
-  const money = (paise) => '₹' + Math.round((paise || 0) / 100).toLocaleString('en-IN');
+  // Show paise precision so per-unit discounts are visible (₹3.40 vs ₹2.89), but
+  // drop a trailing ".00" so round amounts stay clean (₹126, not ₹126.00).
+  const money = (paise) => {
+    const rupees = (paise || 0) / 100;
+    const s = rupees.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return '₹' + s.replace(/\.00$/, '');
+  };
   const offerPct = catalog && catalog.offer ? catalog.offer.discount : 0;
   const PICKUP_NAMES = { 'SHRM-74219': 'Sharma Medical Store' };
   const pharmacyName = (catalog && catalog.name)
@@ -317,9 +323,15 @@ function RefillOrderBuilder({ userMeds }) {
                 <div style={{ fontFamily:fonts.body, fontSize:13, fontWeight:700, color:C.text }}>{item.name}</div>
                 <div style={{ fontFamily:fonts.body, fontSize:11, marginTop:1, display:'flex', gap:6, flexWrap:'wrap', alignItems:'center' }}>
                   {price != null && (
-                    <span style={{ color:C.text, fontWeight:700 }}>
-                      {offerPct>0 ? <span style={{color:C.sage}}>{money(Math.round(price*(1-offerPct/100)))}</span> : money(price)} each
-                    </span>
+                    offerPct > 0 ? (
+                      <span>
+                        <span style={{ color:C.textMuted, textDecoration:'line-through', fontWeight:600 }}>{money(price)}</span>{' '}
+                        <span style={{ color:C.sage, fontWeight:800 }}>{money(Math.round(price*(1-offerPct/100)))}</span>
+                        <span style={{ color:C.textMuted }}> each · {offerPct}% off</span>
+                      </span>
+                    ) : (
+                      <span style={{ color:C.text, fontWeight:700 }}>{money(price)} each</span>
+                    )
                   )}
                   {out ? <span style={{ color:C.red, fontWeight:700 }}>Out of stock</span>
                     : low ? <span style={{ color:C.amber, fontWeight:700 }}>Only {avail} left</span>
@@ -459,6 +471,16 @@ function RefillsScreen({ onNavigate, userMeds }) {
   const [activeOffer, setActiveOffer] = React.useState(null);
   const [offerDismissed, setOfferDismissed] = React.useState(false);
 
+  // The patient's linked pharmacies (backend truth) — the banner reflects the primary
+  // one, or prompts to link when there is none. Never defaults to a hardcoded pharmacy.
+  const refillsApiOn = window.SaathiPillAPI && SaathiPillAPI.enabled && SaathiPillAPI.hasSession();
+  const [linkedPharms, setLinkedPharms] = React.useState([]);
+  React.useEffect(() => {
+    if (!refillsApiOn) return;
+    SaathiPillAPI.linkedPharmacies().then(list => setLinkedPharms(list || [])).catch(() => {});
+  }, [refillsApiOn]);
+  const linkedPrimary = (linkedPharms.find(p => p.primary) || linkedPharms[0]) || null;
+
   React.useEffect(() => {
     const readOffer = () => {
       try {
@@ -508,8 +530,8 @@ function RefillsScreen({ onNavigate, userMeds }) {
 
       <div style={{ flex: 1, overflow: 'auto', padding: '20px 20px 100px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-        {/* Active pharmacy offer banner */}
-        {activeOffer && !offerDismissed && (
+        {/* Active pharmacy offer banner — only when actually linked to a pharmacy */}
+        {linkedPrimary && activeOffer && !offerDismissed && (
           <div style={{
             borderRadius: 18, overflow: 'hidden',
             border: `2px solid ${C.sage}`,
@@ -528,7 +550,7 @@ function RefillsScreen({ onNavigate, userMeds }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 20 }}>🏷️</span>
                   <div>
-                    <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Limited offer · Sharma Medical Store</div>
+                    <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Limited offer · {linkedPrimary.name}</div>
                     <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 800, color: '#fff', marginTop: 1 }}>{activeOffer.label}</div>
                   </div>
                 </div>
@@ -567,30 +589,42 @@ function RefillsScreen({ onNavigate, userMeds }) {
           </div>
         )}
 
-        {/* Pharmacy partner banner */}
-        <div onClick={() => onNavigate && onNavigate('pharmacy')} style={{
-          borderRadius: 18, padding: '14px 18px', marginBottom: 4,
-          background: activeOffer
-            ? 'linear-gradient(135deg, #1A4B8C, #2563EB)'
-            : 'linear-gradient(135deg, #1A4B8C, #2563EB)',
-          display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
-        }}>
-          <span style={{ fontSize: 28 }}>🏥</span>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: '#fff' }}>Sharma Medical Store</div>
-            <div style={{ fontFamily: fonts.body, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
-              {activeOffer ? `${activeOffer.discount}% OFF active — tap to order` : 'Your local pharmacy partner · Tap to order'}
+        {/* Linked-pharmacies button — a generic entry point; tapping opens the full list.
+            Never features one specific pharmacy name. */}
+        {linkedPharms.length > 0 ? (
+          <div onClick={() => onNavigate && onNavigate('pharmacy')} style={{
+            borderRadius: 18, padding: '14px 18px', marginBottom: 4,
+            background: 'linear-gradient(135deg, #1A4B8C, #2563EB)',
+            display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
+          }}>
+            <span style={{ fontSize: 28 }}>🏥</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: '#fff' }}>Your pharmacies</div>
+              <div style={{ fontFamily: fonts.body, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
+                {linkedPharms.length} linked{linkedPharms.some(p => p.offer) ? ' · offers available' : ''} · Tap to view all
+              </div>
             </div>
-          </div>
-          {activeOffer && (
             <div style={{
-              padding: '4px 10px', borderRadius: 8,
-              background: 'rgba(255,255,255,0.15)',
+              minWidth: 26, height: 26, padding: '0 8px', borderRadius: 13,
+              background: 'rgba(255,255,255,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontFamily: fonts.body, fontSize: 14, fontWeight: 900, color: '#fff',
-            }}>{activeOffer.discount}% OFF</div>
-          )}
-          <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18 }}>›</span>
-        </div>
+            }}>{linkedPharms.length}</div>
+            <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 18 }}>›</span>
+          </div>
+        ) : (
+          <div onClick={() => onNavigate && onNavigate('pharmacy')} style={{
+            borderRadius: 18, padding: '14px 18px', marginBottom: 4,
+            border: `2px dashed ${C.border}`, background: C.white,
+            display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
+          }}>
+            <span style={{ fontSize: 28 }}>🏥</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: C.text }}>Link a pharmacy</div>
+              <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted }}>Connect a nearby pharmacy for refills & offers</div>
+            </div>
+            <span style={{ color: C.textMuted, fontSize: 18 }}>›</span>
+          </div>
+        )}
 
         {/* Recent counter pickups pushed from the pharmacy portal */}
         {dispenses.length > 0 && (
@@ -1503,7 +1537,11 @@ function PharmacyBannerScreen({ onClose }) {
   // Registered pharmacies keyed by code — loaded live from the backend (nearby by
   // GPS + lookups for already-linked codes). No hardcoded list.
   const [PHARMACY_DB, setPharmacyDb] = React.useState({});
-  const [geoStatus, setGeoStatus] = React.useState('idle'); // idle|locating|located|denied|nogeo
+  const [geoStatus, setGeoStatus] = React.useState('idle'); // idle|locating|located|denied|nogeo|manual
+  const [locLabel, setLocLabel]       = React.useState('');   // label of the active location
+  const [locSearch, setLocSearch]     = React.useState('');   // manual place-search query
+  const [locResults, setLocResults]   = React.useState([]);   // geocode suggestions
+  const [locSearching, setLocSearching] = React.useState(false);
   const apiOn = window.SaathiPillAPI && SaathiPillAPI.enabled && SaathiPillAPI.hasSession();
   // "Andheri West · 8 AM – 10 PM · 1.2 km away" (skips any missing part)
   const phMeta = (ph) => ph ? [ph.area, ph.hours, ph.distanceKm != null ? `${ph.distanceKm} km away` : null].filter(Boolean).join(' · ') : '';
@@ -1564,24 +1602,53 @@ function PharmacyBannerScreen({ onClose }) {
       return 0;
     });
 
-  // Detect GPS location → load nearby registered pharmacies for the dropdown.
-  React.useEffect(() => {
+  // ── Location: device GPS, with an Uber/Ola-style manual search fallback ──
+  const ingestNearby = React.useCallback((list) => setPharmacyDb(prev => {
+    const next = { ...prev };
+    (list || []).forEach(p => { next[p.code] = { name: p.name, area: p.location || '', hours: p.hours || '', distanceKm: p.distanceKm, color: C.coral }; });
+    return next;
+  }), []);
+  const loadNearby = React.useCallback((lat, lng) => {
     if (!apiOn) return;
-    const ingest = (list) => setPharmacyDb(prev => {
-      const next = { ...prev };
-      (list || []).forEach(p => { next[p.code] = { name: p.name, area: p.location || '', hours: p.hours || '', distanceKm: p.distanceKm, color: C.coral }; });
-      return next;
-    });
-    const loadNearby = (lat, lng) => SaathiPillAPI.nearbyPharmacies(lat, lng).then(ingest).catch(() => {});
-    if (navigator.geolocation) {
-      setGeoStatus('locating');
-      navigator.geolocation.getCurrentPosition(
-        (pos) => { setGeoStatus('located'); loadNearby(pos.coords.latitude, pos.coords.longitude); },
-        () => { setGeoStatus('denied'); loadNearby(); },          // denied → show all, unsorted
-        { timeout: 8000, maximumAge: 300000 }
-      );
-    } else { setGeoStatus('nogeo'); loadNearby(); }
-  }, []);
+    SaathiPillAPI.nearbyPharmacies(lat, lng).then(ingestNearby).catch(() => {});
+  }, [apiOn, ingestNearby]);
+
+  // Ask the browser for location (the standard site permission prompt).
+  const useDeviceLocation = React.useCallback(() => {
+    if (!navigator.geolocation) { setGeoStatus('nogeo'); loadNearby(); return; }
+    setGeoStatus('locating');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setGeoStatus('located'); setLocLabel('Current location'); loadNearby(pos.coords.latitude, pos.coords.longitude); },
+      () => { setGeoStatus('denied'); loadNearby(); },  // denied → still show all (unsorted) so browse/code work
+      { timeout: 8000, maximumAge: 300000 }
+    );
+  }, [loadNearby]);
+
+  // Prompt for location on first open (like any website).
+  React.useEffect(() => { if (apiOn) useDeviceLocation(); }, [apiOn]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Debounced place search for manual location entry (via the backend geocoder).
+  React.useEffect(() => {
+    if (!apiOn) { setLocResults([]); return; }
+    const q = locSearch.trim();
+    if (q.length < 3) { setLocResults([]); setLocSearching(false); return; }
+    setLocSearching(true);
+    const t = setTimeout(() => {
+      SaathiPillAPI.geocode(q)
+        .then(res => setLocResults(Array.isArray(res) ? res : []))
+        .catch(() => setLocResults([]))
+        .finally(() => setLocSearching(false));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [locSearch, apiOn]);
+
+  const pickPlace = (place) => {
+    setGeoStatus('manual');
+    const short = (place.label || '').split(',').slice(0, 2).join(',').trim();
+    setLocLabel(short || 'Selected location');
+    setLocSearch(''); setLocResults([]);
+    loadNearby(place.lat, place.lng);
+  };
 
   // Fill in details for already-linked pharmacies + the code being typed (may be far away).
   React.useEffect(() => {
@@ -1789,6 +1856,54 @@ function PharmacyBannerScreen({ onClose }) {
               {/* ── BROWSE MODE ── */}
               {addMode === 'browse' && (
                 <div>
+                  {/* Location bar: device GPS + manual place search (Uber/Ola style) */}
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <span style={{ fontSize: 16 }}>📍</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {geoStatus === 'locating' ? 'Detecting your location…'
+                            : (geoStatus === 'located' || geoStatus === 'manual') ? (locLabel || 'Location set')
+                            : 'Location not set'}
+                        </div>
+                        <div style={{ fontFamily: fonts.body, fontSize: 11, color: (geoStatus === 'denied' || geoStatus === 'nogeo') ? C.amber : C.textMuted }}>
+                          {(geoStatus === 'located' || geoStatus === 'manual') ? 'Pharmacies sorted by distance'
+                            : (geoStatus === 'denied') ? 'Location blocked — search your area below'
+                            : (geoStatus === 'nogeo') ? 'This device can’t share location — search below'
+                            : 'Allow location, or search your area below'}
+                        </div>
+                      </div>
+                      <button onClick={useDeviceLocation} disabled={geoStatus === 'locating'} style={{
+                        flexShrink: 0, padding: '8px 12px', borderRadius: 10, border: `1.5px solid ${C.coral}`,
+                        background: C.white, color: C.coral, fontFamily: fonts.body, fontSize: 12, fontWeight: 700,
+                        cursor: geoStatus === 'locating' ? 'default' : 'pointer', opacity: geoStatus === 'locating' ? 0.5 : 1,
+                      }}>{geoStatus === 'located' ? '↻ Update' : '📍 Use my location'}</button>
+                    </div>
+
+                    {/* Manual place search */}
+                    <div style={{ position: 'relative', zIndex: 60 }}>
+                      <input
+                        value={locSearch}
+                        onChange={e => setLocSearch(e.target.value)}
+                        placeholder="Search your area or address…"
+                        spellCheck={false}
+                        style={{ width: '100%', height: 44, padding: '0 14px', borderRadius: 12, border: `1.5px solid ${C.border}`, background: C.white, fontFamily: fonts.body, fontSize: 14, color: C.text, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                      {(locSearch.trim().length >= 3) && (locSearching || locResults.length > 0) && (
+                        <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, background: C.white, borderRadius: 14, border: `1.5px solid ${C.border}`, boxShadow: '0 8px 32px rgba(0,0,0,0.14)', zIndex: 120, overflow: 'hidden', maxHeight: 240, overflowY: 'auto' }}>
+                          {locSearching && locResults.length === 0 ? (
+                            <div style={{ padding: '14px 16px', fontFamily: fonts.body, fontSize: 13, color: C.textMuted }}>Searching…</div>
+                          ) : locResults.map((r, i) => (
+                            <button key={i} onClick={() => pickPlace(r)} style={{ width: '100%', padding: '11px 14px', border: 'none', borderBottom: i < locResults.length - 1 ? `1px solid ${C.border}` : 'none', background: 'transparent', cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'flex-start', textAlign: 'left' }}>
+                              <span style={{ fontSize: 14, marginTop: 1 }}>📍</span>
+                              <span style={{ flex: 1, fontFamily: fonts.body, fontSize: 13, color: C.text, lineHeight: 1.4 }}>{r.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Dropdown trigger */}
                   <div style={{ position: 'relative', zIndex: 50 }}>
                     <button

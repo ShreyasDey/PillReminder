@@ -111,6 +111,8 @@
     logout: function () { clearSession(); },
 
     me: function () { return req('/portal/me'); },
+    // Place search for manual location entry (used when GPS is denied at registration).
+    geocode: function (q) { return req('/geocode?q=' + encodeURIComponent(q)); },
     createPharmacy: async function (body) {
       var d = await req('/portal/pharmacies', { method: 'POST', body: JSON.stringify(body) });
       if (d.accessToken) setSession(d); // token now carries the new pharmacyId

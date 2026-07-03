@@ -425,14 +425,28 @@ function App() {
     };
   }, [userMeds, loadRealData]);
 
+  // If someone was invited as a caregiver, surface it right after they sign in so
+  // the invite link "just works" — no hunting for the Family tab.
+  const surfacePendingInvites = () => {
+    const api = window.SaathiPillAPI;
+    if (!api || !api.enabled || !api.hasSession()) return;
+    api.caregivingInvites().then(list => {
+      if (list && list.length > 0) {
+        setTab('family'); setScreen('family'); setOverlayScreen(null);
+        showToast(`🤝 ${list[0].ownerName} invited you as a caregiver — accept in Family`, { duration: 4500 });
+      }
+    }).catch(function () {});
+  };
+
   // After onboarding, go to profile setup, then home
   const handleOnboardingDone = () => setScreen('profileSetup');
-  const handleProfileDone = () => { loadRealData(); setScreen('home'); };
+  const handleProfileDone = () => { loadRealData(); setScreen('home'); surfacePendingInvites(); };
   const handleLogin = async () => {
     // Real backend session (AuthScreen already verified the OTP) → load real data.
     const loaded = await loadRealData();
     if (!loaded) { setIsNewUser(false); setUserMeds(medicines); } // demo/offline fallback
     setScreen('home');
+    surfacePendingInvites();
   };
   const handleSignUp = (name) => {
     // New account starts genuinely empty — no medicines, no adherence history.
