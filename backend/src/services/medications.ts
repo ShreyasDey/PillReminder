@@ -44,12 +44,18 @@ function mealLabel(meal?: string): string | null {
   }
 }
 
+// Default supply for an ongoing (chronic) medicine when no explicit quantity is
+// captured — a typical monthly refill cycle. Fixed courses use their end date.
+const DEFAULT_SUPPLY_DAYS = 30;
+
 export async function addMedicationForPatient(patientId: string, med: MedPayload) {
   const timeMap = { ...TIME_MAP, ...(med.customTimesMap || {}) };
   const courseEndDate =
     med.courseType === "fixed" && med.courseDays
       ? new Date(Date.now() + med.courseDays * 86_400_000)
       : null;
+  // When the current supply is estimated to run out → drives refill reminders.
+  const refillDueAt = courseEndDate ?? new Date(Date.now() + DEFAULT_SUPPLY_DAYS * 86_400_000);
 
   const timeIds = med.times && med.times.length > 0 ? med.times : ["morning"];
   const groupId = crypto.randomUUID();
@@ -77,6 +83,7 @@ export async function addMedicationForPatient(patientId: string, med: MedPayload
           courseType: med.courseType || "ongoing",
           courseDays: med.courseDays ?? null,
           courseEndDate,
+          refillDueAt,
           instructions: med.instructions || null,
           source: med.source ?? undefined,
         },

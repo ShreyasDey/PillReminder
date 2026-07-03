@@ -1006,6 +1006,38 @@ function FamilyScreen({ onNavigate, isNewUser }) {
     linkId: c.linkId,
     permissions: c.permissions || [],
   });
+
+  // ── Edit a caregiver's permissions (owner side) ──
+  const PERM_EDIT_OPTIONS = [
+    { id: 'view_schedule',  icon: '📅', title: 'View schedule' },
+    { id: 'view_adherence', icon: '📊', title: 'View adherence' },
+    { id: 'view_health',    icon: '🩺', title: 'View health info' },
+    { id: 'mark_doses',     icon: '✅', title: 'Mark doses' },
+    { id: 'add_medicines',  icon: '💊', title: 'Add medicines' },
+  ];
+  const [editingId, setEditingId]     = React.useState(null);
+  const [editPerms, setEditPerms]     = React.useState([]);
+  const [savingPerms, setSavingPerms] = React.useState(false);
+  const startEdit = (f) => {
+    if (editingId === f.id) { setEditingId(null); return; }
+    setEditingId(f.id);
+    setEditPerms(f.permissions || []);
+  };
+  const toggleEditPerm = (id) => setEditPerms(prev => prev.includes(id) ? prev.filter(p => p !== id) : [...prev, id]);
+  const savePerms = (f) => {
+    setSavingPerms(true);
+    SaathiPillAPI.updateFamilyPermissions(f.id, editPerms)
+      .then(() => { setEditingId(null); reload(); })
+      .catch(() => {})
+      .finally(() => setSavingPerms(false));
+  };
+  const revokeAccess = (f) => {
+    setSavingPerms(true);
+    SaathiPillAPI.revokeFamily(f.id)
+      .then(() => { setEditingId(null); reload(); })
+      .catch(() => {})
+      .finally(() => setSavingPerms(false));
+  };
   const demoFamily = [
     { name: 'Sunita (Wife)', initials: 'SW', pct: 100, status: 'All caught up ✓', color: C.sage, bg: C.sageLight, meds: 3 },
     { name: 'Mohan (Father)', initials: 'MK', pct: 60, status: '1 dose missed', color: C.red, bg: C.redLight, meds: 5 },
@@ -1015,6 +1047,11 @@ function FamilyScreen({ onNavigate, isNewUser }) {
     ? (realFamily || []).map(l => ({
         id: l.id,
         name: l.relationship ? `${l.memberName} (${l.relationship})` : l.memberName,
+        memberName: l.memberName,
+        relationship: l.relationship,
+        memberPhone: l.memberPhone,
+        permissions: l.permissions || [],
+        pending: l.status !== 'active',
         initials: (l.memberName || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase(),
         status: l.status === 'active' ? 'Active' : 'Invite pending',
         color: l.status === 'active' ? C.sage : C.amber,
@@ -1023,6 +1060,31 @@ function FamilyScreen({ onNavigate, isNewUser }) {
       }))
     : demoFamily;
   const showEmpty = isNewUser || (apiOn && family.length === 0);
+
+  // Rebuild the invite deep-link for a pending caregiver so it can be re-shared.
+  const ownerName = (window.SaathiPillAPI && SaathiPillAPI.userName && SaathiPillAPI.userName()) || '';
+  const inviteLinkFor = (f) => {
+    const base = (typeof window !== 'undefined') ? (window.location.origin + window.location.pathname) : '';
+    const qs = new URLSearchParams({ invite: '1', name: f.memberName || '', rel: f.relationship || '', by: ownerName, perm: (f.permissions || []).join(',') }).toString();
+    return base + '?' + qs;
+  };
+  const smsHrefFor = (f) => {
+    const asRel = f.relationship ? ` as their ${f.relationship.toLowerCase()}` : '';
+    const msg = `${ownerName || 'A family member'} invited you to help manage their medicines on SaathiPill${asRel}. New here? The link sets up your account with details pre-filled. Tap to join: ${inviteLinkFor(f)}`;
+    return `sms:${f.memberPhone ? '+91' + f.memberPhone : ''}?body=${encodeURIComponent(msg)}`;
+  };
+  const [copiedId, setCopiedId] = React.useState(null);
+  const copyLinkFor = (f) => {
+    const link = inviteLinkFor(f);
+    const done = () => { setCopiedId(f.id); setTimeout(() => setCopiedId(null), 2000); };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done).catch(() => {});
+      else {
+        const ta = document.createElement('textarea'); ta.value = link; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.focus(); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); done();
+      }
+    } catch (e) { /* clipboard unavailable */ }
+  };
 
   return (
     <div style={{ flex: 1, background: C.cream, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
@@ -1115,7 +1177,8 @@ function FamilyScreen({ onNavigate, isNewUser }) {
           /* Populated state for existing users */
           <>
             {family.map((f, i) => (
-              <Card key={f.id || i} onClick={f.real ? undefined : () => onNavigate('caregiver', { member: f })} style={{ cursor: f.real ? 'default' : 'pointer' }}>
+              <React.Fragment key={f.id || i}>
+              <Card onClick={f.real ? () => startEdit(f) : () => onNavigate('caregiver', { member: f })} style={{ cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{
                     width: 52, height: 52, borderRadius: 18, background: f.bg,
@@ -1125,9 +1188,16 @@ function FamilyScreen({ onNavigate, isNewUser }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: fonts.body, fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 4 }}>{f.name}</div>
                     {f.real ? (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 12, background: f.bg, color: f.color, fontFamily: fonts.body, fontSize: 12, fontWeight: 700 }}>
-                        {f.status === 'Active' ? '✓ Active' : '⏳ Invite pending'}
-                      </span>
+                      <>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 12, background: f.bg, color: f.color, fontFamily: fonts.body, fontSize: 12, fontWeight: 700 }}>
+                          {f.status === 'Active' ? '✓ Active' : '⏳ Invite pending'}
+                        </span>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 7 }}>
+                          {(f.permissions || []).map((p) => (
+                            <span key={p} style={{ fontFamily: fonts.body, fontSize: 10.5, fontWeight: 700, padding: '2px 7px', borderRadius: 9, background: C.warmGrayLight, color: C.textMuted }}>{CG_PERM_LABELS[p] || p}</span>
+                          ))}
+                        </div>
+                      </>
                     ) : (
                       <>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -1140,9 +1210,49 @@ function FamilyScreen({ onNavigate, isNewUser }) {
                       </>
                     )}
                   </div>
-                  {!f.real && <span style={{ color: C.textMuted, fontSize: 18 }}>›</span>}
+                  <span style={{ color: C.textMuted, fontSize: 18, transform: (f.real && editingId === f.id) ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>›</span>
                 </div>
               </Card>
+
+              {/* Inline editor — manage what this caregiver can do, resend a pending invite, or break the link */}
+              {f.real && editingId === f.id && (
+                <Card style={{ border: `2px solid ${C.coral}55`, marginTop: -4 }}>
+                  {f.pending && (
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 8 }}>⏳ Invite pending — resend the link</div>
+                      <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                        <input readOnly value={inviteLinkFor(f)} onFocus={e => e.target.select()} style={{ flex: 1, height: 42, padding: '0 12px', borderRadius: 12, border: `1.5px solid ${C.border}`, background: C.warmGrayLight, fontFamily: fonts.body, fontSize: 12, color: C.text, outline: 'none', boxSizing: 'border-box' }} />
+                        <button onClick={() => copyLinkFor(f)} style={{ flexShrink: 0, padding: '0 16px', borderRadius: 12, border: 'none', background: copiedId === f.id ? C.sage : C.coral, color: C.white, fontFamily: fonts.body, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>{copiedId === f.id ? 'Copied ✓' : 'Copy'}</button>
+                      </div>
+                      {f.memberPhone && (
+                        <a href={smsHrefFor(f)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, height: 42, borderRadius: 12, background: C.white, border: `1.5px solid ${C.coral}`, color: C.coral, fontFamily: fonts.body, fontSize: 14, fontWeight: 700, textDecoration: 'none' }}>💬 Resend via SMS</a>
+                      )}
+                      <div style={{ fontFamily: fonts.body, fontSize: 11, color: C.textMuted, marginTop: 8, lineHeight: 1.5 }}>
+                        {f.memberName?.split(' ')[0] || 'They'} will appear as active once they open the link, sign up, and accept.
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>What can {f.memberName?.split(' ')[0] || 'they'} do?</div>
+                  <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted, marginBottom: 10 }}>Changes apply immediately.</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 14 }}>
+                    {PERM_EDIT_OPTIONS.map(opt => {
+                      const on = editPerms.includes(opt.id);
+                      return (
+                        <button key={opt.id} onClick={() => toggleEditPerm(opt.id)} style={{ padding: '11px 13px', borderRadius: 11, textAlign: 'left', border: `2px solid ${on ? C.coral : C.border}`, background: on ? C.coralLight : C.white, cursor: 'pointer', display: 'flex', gap: 10, alignItems: 'center', width: '100%' }}>
+                          <div style={{ width: 20, height: 20, borderRadius: 6, flexShrink: 0, border: `2px solid ${on ? C.coral : C.border}`, background: on ? C.coral : C.white, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: C.white, fontWeight: 700 }}>{on ? '✓' : ''}</div>
+                          <span style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: on ? C.coral : C.text }}>{opt.icon} {opt.title}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <Btn onClick={() => savePerms(f)} disabled={savingPerms || editPerms.length === 0} icon="✓" style={{ width: '100%', marginBottom: 8 }}>Save changes</Btn>
+                  <button onClick={() => revokeAccess(f)} disabled={savingPerms} style={{ width: '100%', padding: '11px 0', borderRadius: 12, border: `1.5px solid ${C.red}55`, background: C.white, color: C.red, fontFamily: fonts.body, fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>
+                    🔗 Break link with {f.memberName?.split(' ')[0] || 'this person'}
+                  </button>
+                </Card>
+              )}
+              </React.Fragment>
             ))}
             {/* Add family member */}
             <button onClick={() => onNavigate('addFamily')} style={{

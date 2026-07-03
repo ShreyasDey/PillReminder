@@ -163,6 +163,8 @@ model Medication {
   instructions  String?
   source        Json?      // { type:'pharmacy', name, code } or null = self
   active        Boolean    @default(true)
+  refillDueAt     DateTime? // when the current supply is estimated to run out
+  refillRemindedAt DateTime? // when we last fired a refill reminder (cleared on refill)
   createdAt     DateTime   @default(now())
 
   doseLogs      DoseLog[]
@@ -232,6 +234,7 @@ model Appointment {
   location     String?
   reason       String?
   reminderLead String?  // "1d", "2h", etc.
+  remindedAt   DateTime? // when we fired the reminder (null = not yet)
   createdAt    DateTime @default(now())
 }
 

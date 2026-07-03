@@ -469,7 +469,8 @@ export default async function patientRoutes(app: FastifyInstance) {
   // have invited and what each caregiver is allowed to do.
   app.get("/family", async (req) =>
     prisma.familyLink.findMany({
-      where: { ownerId: req.user.sub },
+      // Only live links — a broken (revoked) or declined link disappears from the list.
+      where: { ownerId: req.user.sub, status: { in: ["invited", "active"] } },
       orderBy: { createdAt: "desc" },
     }),
   );
@@ -801,6 +802,18 @@ export default async function patientRoutes(app: FastifyInstance) {
         amount,
       },
     });
+
+    // Ordering a refill resets the supply clock for those medicines: push the
+    // refill-due date out a month and clear the reminder so it can fire next cycle.
+    const REFILL_CYCLE_DAYS = 30;
+    const nextDue = new Date(Date.now() + REFILL_CYCLE_DAYS * 86_400_000);
+    for (const it of body.items) {
+      await prisma.medication.updateMany({
+        where: { patientId: req.user.sub, active: true, drug: { startsWith: String(it.med).split(/\s+\d/)[0].trim() } },
+        data: { refillDueAt: nextDue, refillRemindedAt: null },
+      });
+    }
+
     if (pharmacy) emitToPharmacy(pharmacy.id, "refill.created", order);
     return reply.code(201).send(order);
   });

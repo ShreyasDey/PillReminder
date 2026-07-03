@@ -4,42 +4,9 @@ import { prisma } from "../lib/prisma.js";
 import { emitToPatient, emitToPharmacy } from "../lib/realtime.js";
 import { notify } from "../lib/notify.js";
 import { adherencePct, dailyAdherenceSeries, ymd } from "../lib/schedule.js";
+import { computeDemand7d, suggestedOrderQty } from "../lib/demand.js";
 
 const CODE_RE = /^[A-Z0-9]{4}-[A-Z0-9]{5}$/;
-
-// ── Inventory demand forecasting ──
-// Demand is *learned from real counter-sale history* instead of being configured by
-// hand: the average daily units sold over a trailing window, expressed as a 7-day
-// figure. Items with no sales history fall back to their stored demand (0 for new
-// items) so we never invent a forecast we can't back up.
-const DEMAND_WINDOW_DAYS = 28;
-const COVER_DAYS = 14; // reorder suggestion targets ~2 weeks of cover
-
-async function computeDemand7d(pharmacyId: string): Promise<Map<string, number>> {
-  const since = new Date(Date.now() - DEMAND_WINDOW_DAYS * 86_400_000);
-  const dispenses = await prisma.dispense.findMany({
-    where: { pharmacyId, at: { gte: since } },
-    select: { items: true },
-  });
-  const totals = new Map<string, number>();
-  for (const d of dispenses) {
-    const items = Array.isArray(d.items) ? (d.items as Array<{ name?: string; qty?: number }>) : [];
-    for (const it of items) {
-      if (!it?.name) continue;
-      totals.set(it.name, (totals.get(it.name) ?? 0) + (Number(it.qty) || 0));
-    }
-  }
-  const demand = new Map<string, number>();
-  for (const [name, qty] of totals) demand.set(name, Math.round((qty / DEMAND_WINDOW_DAYS) * 7));
-  return demand;
-}
-
-// Units to order so stock covers the next COVER_DAYS at the current demand rate.
-function suggestedOrderQty(stock: number, demand7d: number): number {
-  if (demand7d <= 0) return 0;
-  const target = Math.ceil((demand7d * COVER_DAYS) / 7);
-  return Math.max(0, target - stock);
-}
 
 export default async function portalRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.requirePharmacist);

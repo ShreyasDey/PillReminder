@@ -79,6 +79,8 @@
       return req('/api/pharmacies/nearby' + q);
     },
     pharmacyByCode: function (code) { return req('/api/pharmacies/by-code?code=' + encodeURIComponent(code)); },
+    // Place search for manual location entry (used when GPS is denied).
+    geocode: function (q) { return req('/geocode?q=' + encodeURIComponent(q)); },
     // Multiple linked pharmacies
     linkedPharmacies: function () { return req('/api/me/pharmacies'); },
     addPharmacy: function (code) { return req('/api/me/pharmacies', { method: 'POST', body: JSON.stringify({ code: code }) }); },
