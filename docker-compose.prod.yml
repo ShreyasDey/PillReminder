@@ -1,0 +1,103 @@
+# SaathiPill — production stack.
+#
+#   1. Copy .env.production.example → .env and fill in the values.
+#   2. Point your three domains (app / portal / api) at this server's IP.
+#   3. docker compose -f docker-compose.prod.yml up -d --build
+#
+# Caddy obtains and renews HTTPS certificates automatically. No demo data is
+# loaded — the first pharmacist registers through the portal, patients sign up
+# with OTP.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-saathipill}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-saathipill}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-saathipill}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Not exposed to the host — only the API talks to it over the internal network.
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-saathipill}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-saathipill}?schema=public
+      PORT: "3000"
+      NODE_ENV: production
+      TZ: ${TZ:-Asia/Kolkata}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      JWT_EXPIRES: ${JWT_EXPIRES:-30m}
+      CORS_ORIGINS: https://${APP_DOMAIN},https://${PORTAL_DOMAIN}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?set VAPID_PUBLIC_KEY in .env}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?set VAPID_PRIVATE_KEY in .env}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:care@saathipill.in}
+      SMS_PROVIDER: ${SMS_PROVIDER:-}
+      MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Apply migrations then start the API. No seeding in production.
+    command: sh -c "npx prisma migrate deploy && npm run start"
+
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-saathipill}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-saathipill}?schema=public
+      NODE_ENV: production
+      TZ: ${TZ:-Asia/Kolkata}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:care@saathipill.in}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: sh -c "npm run worker:start"
+
+  patient-web:
+    build: ./apps/patient
+    restart: unless-stopped
+    environment:
+      API_URL: https://${API_DOMAIN}
+      SOCKET_URL: https://${API_DOMAIN}
+
+  portal-web:
+    build: ./apps/portal
+    restart: unless-stopped
+    environment:
+      API_URL: https://${API_DOMAIN}
+      SOCKET_URL: https://${API_DOMAIN}
+      PATIENT_APP_URL: https://${APP_DOMAIN}
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+      APP_DOMAIN: ${APP_DOMAIN}
+      PORTAL_DOMAIN: ${PORTAL_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+      - patient-web
+      - portal-web
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

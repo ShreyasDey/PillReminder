@@ -490,10 +490,13 @@ function UpcomingAppointmentCard({ appointment, onOpenReminder, onTap }) {
   const accent = '#6FA689'; // green accent (matches the speed-dial action color)
 
   return (
-    <button
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onTap}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onTap && onTap(); } }}
       style={{
-        width: '100%',
+        width: '100%', boxSizing: 'border-box',
         background: C.white,
         borderRadius: 18,
         border: `1px solid ${isImminent ? accent + '55' : C.border}`,
@@ -538,7 +541,7 @@ function UpcomingAppointmentCard({ appointment, onOpenReminder, onTap }) {
         }}
         aria-label="Preview reminder"
       >Preview</button>
-    </button>
+    </div>
   );
 }
 

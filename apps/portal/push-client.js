@@ -1,6 +1,7 @@
-// Web Push enablement for the patient app. Registers the service worker, asks for
-// notification permission, and stores the browser's push subscription on the
-// backend so the reminder worker can reach this device even when the tab is closed.
+// Web Push enablement for the pharmacy portal. Registers the service worker,
+// asks for notification permission, and stores the browser's push subscription
+// on the backend so restock reminders and new-order alerts reach this desktop
+// even when the portal tab is closed. Mirrors the patient app's push-client.
 
 (function () {
   function urlB64ToUint8Array(base64String) {
@@ -33,14 +34,14 @@
   }
 
   async function enable() {
-    var api = window.SaathiPillAPI;
+    var api = window.PortalAPI;
     if (!supported) throw new Error('This browser does not support notifications.');
     if (!(api && api.enabled && api.hasSession())) throw new Error('Please sign in first.');
     var perm = await Notification.requestPermission();
     if (perm !== 'granted') throw new Error('Notifications are blocked. Enable them in your browser settings.');
     var r = await register();
     var keyResp = await api.vapidKey();
-    if (!keyResp || !keyResp.publicKey) throw new Error('Reminders are not configured on the server.');
+    if (!keyResp || !keyResp.publicKey) throw new Error('Notifications are not configured on the server.');
     var existing = await r.pushManager.getSubscription();
     var sub = existing || (await r.pushManager.subscribe({
       userVisibleOnly: true,
@@ -59,18 +60,18 @@
       if (s) {
         var ep = s.endpoint;
         await s.unsubscribe();
-        if (window.SaathiPillAPI) await window.SaathiPillAPI.unsubscribePush(ep).catch(function () {});
+        if (window.PortalAPI) await window.PortalAPI.unsubscribePush(ep).catch(function () {});
       }
     } catch (e) {}
   }
 
-  // Ask for permission automatically when the app opens (signed in). Never
+  // Ask for permission automatically when the portal opens (signed in). Never
   // throws and never nags: a denied/blocked browser is left alone, and the
-  // Profile toggle remains the manual path. Also re-subscribes silently when
+  // Settings toggle remains the manual path. Also re-subscribes silently when
   // permission is already granted but the subscription was lost.
   async function autoEnable() {
     try {
-      var api = window.SaathiPillAPI;
+      var api = window.PortalAPI;
       if (!supported) return false;
       if (!(api && api.enabled && api.hasSession())) return false;
       if (Notification.permission === 'denied') return false;
@@ -83,7 +84,7 @@
     } catch (e) { return false; }
   }
 
-  window.SaathiPillPush = {
+  window.PortalPush = {
     supported: supported,
     register: register,
     isEnabled: isEnabled,

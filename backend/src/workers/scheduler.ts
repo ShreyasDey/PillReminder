@@ -65,7 +65,9 @@ async function fireReminders() {
   });
 
   for (const d of due) {
-    if (timeToMinutes(d.scheduledTime) > nowMinutes) continue; // not due yet
+    if (!d.medication.remindersOn) continue; // reminders muted for this medicine
+    // Fire remindBeforeMin minutes early when the patient configured a head start.
+    if (timeToMinutes(d.scheduledTime) - (d.medication.remindBeforeMin || 0) > nowMinutes) continue; // not due yet
     if (d.nextRemindAt && d.nextRemindAt > now) continue; // snoozed
     if (d.lastRemindedAt && now.getTime() - d.lastRemindedAt.getTime() < REPEAT_MS) continue; // reminded recently
 
@@ -77,9 +79,11 @@ async function fireReminders() {
       url: "/",
       requireInteraction: true,
       data: { doseId: d.id, kind: "dose-reminder" },
+      // Browsers cap notifications at 2 buttons — "Yes" plus a drop-up that
+      // opens the in-app sheet (snooze / doctor stopped / side effects).
       actions: [
-        { action: "take", title: "✓ Taken" },
-        { action: "snooze", title: "Snooze 10m" },
+        { action: "take", title: "✓ Yes, taken" },
+        { action: "options", title: "Can't take it ▾" },
       ],
     });
     emitToPatient(med.patientId, "dose.reminder", {
@@ -171,16 +175,25 @@ const lowStockNotified = new Set<string>();
  * send one consolidated reminder per day when items won't cover the coming week.
  */
 async function notifyLowStock() {
-  const today = ymd(new Date());
-  const pharmacies = await prisma.pharmacy.findMany({ select: { id: true, name: true } });
+  const now = new Date();
+  const today = ymd(now);
+  const pharmacies = await prisma.pharmacy.findMany({
+    select: { id: true, name: true, restockRemindersOn: true, restockRemindHour: true, restockLeadDays: true },
+  });
   for (const ph of pharmacies) {
+    if (!ph.restockRemindersOn) continue;
+    // Send from the pharmacy's chosen hour onwards (default 9 AM), once per day —
+    // ">= hour" instead of "== hour" so a worker restart can't skip the day.
+    if (now.getHours() < ph.restockRemindHour) continue;
     const key = ph.id + "|" + today;
     if (lowStockNotified.has(key)) continue;
     const demand = await computeDemand7d(ph.id);
     const inv = await prisma.inventoryItem.findMany({ where: { pharmacyId: ph.id } });
+    const leadDays = ph.restockLeadDays || 7;
     const low = inv.filter((i) => {
-      const d = demand.get(i.name) ?? 0;
-      return d > 0 && i.stock <= d; // real demand, and stock won't cover ~a week
+      const d7 = demand.get(i.name) ?? 0;
+      const needed = (d7 / 7) * leadDays; // demand over the configured cover window
+      return d7 > 0 && i.stock <= needed;
     });
     if (!low.length) continue;
     const pharmacists = await prisma.user.findMany({
@@ -189,7 +202,7 @@ async function notifyLowStock() {
     });
     if (!pharmacists.length) continue;
     const names = low.slice(0, 5).map((i) => i.name).join(", ");
-    const body = `${low.length} item${low.length === 1 ? "" : "s"} low on stock vs recent demand: ${names}${low.length > 5 ? "…" : ""}. Reorder to avoid stockouts.`;
+    const body = `${low.length} item${low.length === 1 ? "" : "s"} won't cover the next ${leadDays} days of demand: ${names}${low.length > 5 ? "…" : ""}. Reorder to avoid stockouts.`;
     for (const p of pharmacists) {
       await notify({ userId: p.id, kind: "low-stock", title: "📦 Restock reminder", body });
     }

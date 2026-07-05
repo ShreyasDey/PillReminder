@@ -53,7 +53,21 @@ export default async function authRoutes(app: FastifyInstance) {
 
     await prisma.otpRequest.update({ where: { id: otp.id }, data: { consumed: true } });
 
+    // Match the account by DIGITS, not by exact string — "+91 98765 43210",
+    // "+91 9876543210" and "9876543210" are all the same person. Without this,
+    // a re-formatted phone (e.g. from an invite link) silently creates a
+    // duplicate empty account instead of logging the user in.
     let user = await prisma.user.findUnique({ where: { phone: body.phone } });
+    if (!user) {
+      const digits = body.phone.replace(/\D/g, "").slice(-10);
+      if (digits.length === 10) {
+        // Full scan + digit compare: stored formats vary too much for a
+        // string query. Fine at this scale; index a normalized column later.
+        const candidates = await prisma.user.findMany();
+        user = candidates.find((u) => u.phone.replace(/\D/g, "").slice(-10) === digits) ?? null;
+      }
+    }
+    const isNew = !user;
     if (!user) {
       user = await prisma.user.create({
         data: {
@@ -68,6 +82,7 @@ export default async function authRoutes(app: FastifyInstance) {
     const tokens = await issueTokens(app, user);
     return reply.send({
       ...tokens,
+      isNew, // lets the app route to onboarding (new) vs straight home (existing)
       user: { id: user.id, name: user.name, role: user.role, phone: user.phone, pharmacyId: user.pharmacyId },
     });
   });

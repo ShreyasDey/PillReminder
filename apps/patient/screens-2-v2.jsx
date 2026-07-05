@@ -4,20 +4,14 @@
 const { useState: useState2, useEffect: useEffect2, useRef: useRef2 } = React;
 
 // ── SCREEN 6: REMINDER MODAL ──
-function ReminderModal({ med, onTaken, onSnooze, onSkip, onEscalation, snoozeCount = 0, snoozeCap = 3, isOffline = false }) {
-  const [snoozed, setSnoozed] = useState2(false);
+function ReminderModal({ med, onTaken, onSnooze, onSkip, onStopMed, onEscalation, snoozeCount = 0, snoozeCap = 3, isOffline = false, initialSheetOpen = false }) {
   const [pulse, setPulse] = useState2(true);
-  const [showSkipSheet, setShowSkipSheet] = useState2(false);
+  // The desktop notification's "Can't take it ▾" button opens the app with the
+  // options sheet already up.
+  const [showSkipSheet, setShowSkipSheet] = useState2(!!initialSheetOpen);
+  const [confirmStop, setConfirmStop] = useState2(false);
   const snoozesLeft = Math.max(0, snoozeCap - snoozeCount);
   const snoozeBlocked = snoozesLeft === 0;
-
-  // L-07: skip is a distinct event type from miss, with a captured reason
-  const skipReasons = [
-    { id: 'doctor',      label: 'Doctor advised skip',     icon: '🩺', excludesFromAdherence: true },
-    { id: 'side-effect', label: 'Side effects today',      icon: '🤒', excludesFromAdherence: false },
-    { id: 'not-needed',  label: 'Not needed today (PRN)',  icon: '✂️', excludesFromAdherence: true },
-    { id: 'other',       label: 'Other reason',            icon: '💬', excludesFromAdherence: false },
-  ];
 
   useEffect2(() => {
     const t = setInterval(() => setPulse(p => !p), 900);
@@ -120,27 +114,18 @@ function ReminderModal({ med, onTaken, onSnooze, onSkip, onEscalation, snoozeCou
         </button>
       </div>
 
-      {/* Action buttons */}
+      {/* Action buttons: one clear YES + everything else in a drop-up sheet */}
       <div style={{ width: '100%', paddingBottom: 32, display: 'flex', flexDirection: 'column', gap: 12 }}>
         <Btn onClick={onTaken} variant="sage" style={{ fontSize: 19, letterSpacing: '-0.01em' }} icon="✓">
-          I've taken it
+          Yes, I've taken it
         </Btn>
         <Btn
-          onClick={() => { setSnoozed(true); onSnooze(); }}
+          onClick={() => { setConfirmStop(false); setShowSkipSheet(true); }}
           variant="outline"
-          style={{
-            color: snoozeBlocked ? 'rgba(255,255,255,0.5)' : C.white,
-            borderColor: 'rgba(255,255,255,0.3)',
-            opacity: snoozeBlocked ? 0.6 : 1,
-          }}
-          icon="⏰">
-          {snoozeBlocked ? 'Snooze cap reached — escalating' : `Snooze 10 minutes${snoozeCount > 0 ? ` (${snoozesLeft} left)` : ''}`}
+          style={{ color: C.white, borderColor: 'rgba(255,255,255,0.3)' }}
+          icon="▾">
+          I can't take it right now
         </Btn>
-        <button onClick={() => setShowSkipSheet(true)} style={{
-          background: 'none', border: 'none', cursor: 'pointer',
-          fontFamily: fonts.body, fontSize: 15, color: 'rgba(255,255,255,0.4)',
-          padding: '8px 0', textDecoration: 'underline',
-        }}>Skip this dose</button>
         {onEscalation && (
           <button onClick={onEscalation} style={{
             background: 'none', border: 'none', cursor: 'pointer',
@@ -150,7 +135,7 @@ function ReminderModal({ med, onTaken, onSnooze, onSkip, onEscalation, snoozeCou
         )}
       </div>
 
-      {/* L-07: Skip reason sheet — captures intent so skip ≠ miss in logs */}
+      {/* Options sheet — snooze, doctor stopped, side effects */}
       {showSkipSheet && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 10,
@@ -166,30 +151,77 @@ function ReminderModal({ med, onTaken, onSnooze, onSkip, onEscalation, snoozeCou
             boxShadow: '0 -8px 32px rgba(0,0,0,0.35)',
           }}>
             <div style={{ width: 40, height: 4, borderRadius: 2, background: C.border, margin: '0 auto 16px' }} />
-            <div style={{ fontFamily: fonts.heading, fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 4 }}>Why are you skipping?</div>
+            <div style={{ fontFamily: fonts.heading, fontSize: 20, fontWeight: 800, color: C.text, marginBottom: 4 }}>Can't take {m.name} right now?</div>
             <div style={{ fontFamily: fonts.body, fontSize: 13, color: C.textMuted, lineHeight: 1.5, marginBottom: 16 }}>
-              We log <strong>skips separately from missed doses</strong> — so your adherence stays accurate and your doctor sees the right picture.
+              Tell us why — skips are logged <strong>separately from missed doses</strong>, so your adherence stays accurate.
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {skipReasons.map(r => (
-                <button key={r.id} onClick={() => { setShowSkipSheet(false); onSkip && onSkip(r); }} style={{
+
+              {/* Snooze */}
+              <button
+                disabled={snoozeBlocked}
+                onClick={() => { setShowSkipSheet(false); onSnooze && onSnooze(); }}
+                style={{
                   display: 'flex', alignItems: 'center', gap: 12, width: '100%',
                   padding: '14px 16px', borderRadius: 14,
-                  border: `1.5px solid ${C.border}`, background: C.white, cursor: 'pointer',
-                  textAlign: 'left',
+                  border: `1.5px solid ${C.border}`, background: C.white,
+                  cursor: snoozeBlocked ? 'default' : 'pointer', textAlign: 'left',
+                  opacity: snoozeBlocked ? 0.55 : 1,
                 }}>
-                  <span style={{ fontSize: 22 }}>{r.icon}</span>
+                <span style={{ fontSize: 22 }}>⏰</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: fonts.body, fontSize: 14.5, fontWeight: 700, color: C.text }}>Snooze 10 minutes</div>
+                  <div style={{ fontFamily: fonts.body, fontSize: 11, color: snoozeBlocked ? C.red : C.textMuted, fontWeight: 600, marginTop: 2 }}>
+                    {snoozeBlocked ? 'Snooze cap reached — your caregiver will be alerted' : `I'll take it shortly · ${snoozesLeft} snooze${snoozesLeft === 1 ? '' : 's'} left`}
+                  </div>
+                </div>
+                <span style={{ color: C.textMuted, fontSize: 18 }}>›</span>
+              </button>
+
+              {/* Side effects → skip + go log symptoms */}
+              <button
+                onClick={() => { setShowSkipSheet(false); onSkip && onSkip({ id: 'side-effect', label: 'Facing side effects', icon: '🤒', excludesFromAdherence: false, openSymptoms: true }); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                  padding: '14px 16px', borderRadius: 14,
+                  border: `1.5px solid ${C.border}`, background: C.white, cursor: 'pointer', textAlign: 'left',
+                }}>
+                <span style={{ fontSize: 22 }}>🤒</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: fonts.body, fontSize: 14.5, fontWeight: 700, color: C.text }}>I'm facing side effects</div>
+                  <div style={{ fontFamily: fonts.body, fontSize: 11, color: C.textMuted, fontWeight: 600, marginTop: 2 }}>Skips this dose — then log what you're feeling for your doctor</div>
+                </div>
+                <span style={{ color: C.textMuted, fontSize: 18 }}>›</span>
+              </button>
+
+              {/* Doctor stopped → confirm, then remove the medicine entirely */}
+              {confirmStop ? (
+                <div style={{ padding: '14px 16px', borderRadius: 14, border: `1.5px solid ${C.red}55`, background: '#FEF2F2' }}>
+                  <div style={{ fontFamily: fonts.body, fontSize: 13.5, fontWeight: 700, color: C.text, marginBottom: 4 }}>Stop {m.name} completely?</div>
+                  <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted, lineHeight: 1.5, marginBottom: 10 }}>
+                    It will be removed from your list and reminders will stop. You can always add it again later.
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={() => { setShowSkipSheet(false); onStopMed && onStopMed(m); }} style={{ flex: 1, padding: '10px 0', borderRadius: 11, border: 'none', background: C.red, color: C.white, fontFamily: fonts.body, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Yes, stop it</button>
+                    <button onClick={() => setConfirmStop(false)} style={{ flex: 1, padding: '10px 0', borderRadius: 11, border: `1px solid ${C.border}`, background: C.white, color: C.textMuted, fontFamily: fonts.body, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmStop(true)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                    padding: '14px 16px', borderRadius: 14,
+                    border: `1.5px solid ${C.border}`, background: C.white, cursor: 'pointer', textAlign: 'left',
+                  }}>
+                  <span style={{ fontSize: 22 }}>🩺</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontFamily: fonts.body, fontSize: 14.5, fontWeight: 700, color: C.text }}>{r.label}</div>
-                    {r.excludesFromAdherence && (
-                      <div style={{ fontFamily: fonts.body, fontSize: 11, color: C.sage, fontWeight: 600, marginTop: 2 }}>
-                        Excluded from adherence %
-                      </div>
-                    )}
+                    <div style={{ fontFamily: fonts.body, fontSize: 14.5, fontWeight: 700, color: C.text }}>Doctor told me to stop this medicine</div>
+                    <div style={{ fontFamily: fonts.body, fontSize: 11, color: C.textMuted, fontWeight: 600, marginTop: 2 }}>Removes it from your list — reminders stop</div>
                   </div>
                   <span style={{ color: C.textMuted, fontSize: 18 }}>›</span>
                 </button>
-              ))}
+              )}
             </div>
             <button onClick={() => setShowSkipSheet(false)} style={{
               width: '100%', marginTop: 14, padding: '12px',
@@ -324,7 +356,7 @@ function EscalationScreen({ onClose }) {
 }
 
 // ── SCREEN 9: MEDICATION HISTORY ──
-function HistoryScreen({ onClose, isNewUser, userAppointments, userSymptoms }) {
+function HistoryScreen({ onClose, isNewUser, userAppointments, userSymptoms, adherenceDaily }) {
   const [selectedDay, setSelectedDay] = useState2(null);
 
   const today = new Date();
@@ -372,25 +404,33 @@ function HistoryScreen({ onClose, isNewUser, userAppointments, userSymptoms }) {
     );
   }
 
-  // Mock data — deterministic so it doesn't re-randomise on every render
+  // Real per-day status, computed from the backend adherence series (this month).
+  // Each series entry has { date, taken, missed, counted }. A day is:
+  //   • missed  (red)   — at least ONE dose missed that day
+  //   • taken   (green) — every counted dose was taken, none missed
+  //   • partial (today, still in progress)
+  //   • none    — no doses logged that day
   const dayData = {};
+  const dayStat = {}; // day-of-month → { taken, missed, counted }
   const todayNum = today.getDate();
+  const seriesByDay = {};
+  (adherenceDaily || []).forEach(e => {
+    if (!e || !e.date) return;
+    const dt = new Date(e.date + 'T00:00:00');
+    if (dt.getFullYear() === year && dt.getMonth() === month) seriesByDay[dt.getDate()] = e;
+  });
   for (let d = 1; d <= daysInMonth; d++) {
-    if (d > todayNum) {
-      dayData[d] = 'future'; // never show status for future days
-    } else if (d === todayNum) {
-      dayData[d] = 'partial';
-    } else {
-      // deterministic pattern based on day number — L-07: skip is a distinct outcome
-      if (d % 11 === 0) dayData[d] = 'missed';
-      else if (d % 13 === 0) dayData[d] = 'skipped';
-      else if (d % 7 === 5) dayData[d] = 'late';
-      else dayData[d] = 'taken';
-    }
+    if (d > todayNum) { dayData[d] = 'future'; continue; }
+    const e = seriesByDay[d];
+    const stat = { taken: e ? e.taken : 0, missed: e ? e.missed : 0, counted: e ? e.counted : 0 };
+    dayStat[d] = stat;
+    if (stat.missed > 0) dayData[d] = 'missed';               // missed even one → red
+    else if (d === todayNum) dayData[d] = 'partial';          // today is never "done"
+    else dayData[d] = stat.counted > 0 ? 'taken' : 'none';    // all taken → green, else no data
   }
 
-  const dayColors = { taken: C.sage, missed: C.red, late: C.amber, skipped: '#5B8EE0', partial: C.coral, future: 'transparent' };
-  const dayLabels = { taken: 'All taken ✓', missed: 'Missed (no response) ✗', late: 'Taken late ⚠️', skipped: 'Skipped intentionally ⊘', partial: 'In progress', future: '' };
+  const dayColors = { taken: C.sage, missed: C.red, partial: C.coral, future: 'transparent', none: 'transparent' };
+  const dayLabels = { taken: 'All medicines taken ✓', missed: 'Missed a dose ✗', partial: 'In progress', future: '', none: 'No doses logged' };
 
   const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
@@ -428,12 +468,6 @@ function HistoryScreen({ onClose, isNewUser, userAppointments, userSymptoms }) {
     gyn: 'Gynecologist', other: 'Specialist',
   };
 
-  const selectedMeds = selectedDay ? [
-    { name: 'Metformin 500mg', time: '8:00 AM', status: dayData[selectedDay] === 'missed' ? 'missed' : dayData[selectedDay] === 'skipped' ? 'skipped' : 'taken', skipReason: dayData[selectedDay] === 'skipped' ? 'Doctor advised skip' : null },
-    { name: 'Amlodipine 5mg', time: '9:00 AM', status: dayData[selectedDay] === 'missed' ? 'missed' : 'taken' },
-    { name: 'Telmisartan 40mg', time: '1:00 PM', status: dayData[selectedDay] === 'missed' || dayData[selectedDay] === 'late' ? 'late' : 'taken' },
-    { name: 'Atorvastatin 10mg', time: '9:00 PM', status: selectedDay === today.getDate() ? 'pending' : 'taken' },
-  ] : [];
 
   return (
     <div style={{ flex: 1, minHeight: 0, background: C.cream, display: 'flex', flexDirection: 'column' }}>
@@ -451,9 +485,9 @@ function HistoryScreen({ onClose, isNewUser, userAppointments, userSymptoms }) {
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px 24px' }}>
         {/* Calendar */}
         <Card style={{ marginBottom: 16 }}>
-          {/* Legend — L-07: skip is its own category, distinct from miss */}
+          {/* Legend — green = all medicines taken, red = missed a dose */}
           <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-            {[['taken', 'Taken'], ['missed', 'Missed'], ['skipped', 'Skipped']].map(([k, l]) => (
+            {[['taken', 'All taken'], ['missed', 'Missed']].map(([k, l]) => (
               <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: dayColors[k] }} />
                 <span style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted }}>{l}</span>
@@ -578,36 +612,28 @@ function HistoryScreen({ onClose, isNewUser, userAppointments, userSymptoms }) {
               );
             })}
 
-            {dayData[selectedDay] !== 'future' && <Card style={{ marginBottom: 8, padding: '10px 14px', background: dayColors[dayData[selectedDay]] + '22', border: `1px solid ${dayColors[dayData[selectedDay]] + '44'}` }}>
-              <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: dayColors[dayData[selectedDay]] }}>
-                {dayLabels[dayData[selectedDay]]}
-              </div>
-            </Card>}
-            {dayData[selectedDay] !== 'future' && selectedMeds.map((m, i) => {
-              const sc = m.status === 'taken' ? C.sage : m.status === 'missed' ? C.red : m.status === 'late' ? C.amber : m.status === 'skipped' ? '#5B8EE0' : C.warmGray;
-              const icon = m.status === 'taken' ? '✓' : m.status === 'missed' ? '✗' : m.status === 'late' ? '⚠️' : m.status === 'skipped' ? '⊘' : '○';
-              const label = m.status === 'skipped' ? 'Skipped' : m.status;
+            {dayData[selectedDay] !== 'future' && (() => {
+              const st = dayStat[selectedDay] || { taken: 0, missed: 0, counted: 0 };
+              const dd = dayData[selectedDay];
+              const col = dayColors[dd] === 'transparent' ? C.textMuted : (dayColors[dd] || C.textMuted);
+              const summary = dd === 'missed'
+                ? `Missed ${st.missed} of ${st.counted} ${st.counted === 1 ? 'dose' : 'doses'}`
+                : dd === 'taken'
+                ? `All ${st.counted} ${st.counted === 1 ? 'dose' : 'doses'} taken ✓`
+                : dd === 'partial'
+                ? (st.taken > 0 ? `${st.taken} taken so far today` : 'In progress — no doses marked yet')
+                : 'No doses logged this day';
               return (
-                <Card key={i} style={{ marginBottom: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: sc, flexShrink: 0 }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: fonts.body, fontSize: 15, fontWeight: 600, color: C.text }}>{m.name}</div>
-                      <div style={{ fontFamily: fonts.body, fontSize: 13, color: C.textMuted }}>{m.time}</div>
-                    </div>
-                    <Pill color={sc}>{icon} {label}</Pill>
-                  </div>
-                  {m.status === 'skipped' && m.skipReason && (
-                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 14 }}>🩺</span>
-                      <span style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted, lineHeight: 1.4, flex: 1 }}>
-                        Reason: <strong style={{ color: C.text }}>{m.skipReason}</strong> · excluded from adherence %
-                      </span>
+                <Card style={{ marginBottom: 8, padding: '12px 14px', background: col + '22', border: `1px solid ${col}44` }}>
+                  <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: col }}>{summary}</div>
+                  {st.counted > 0 && (
+                    <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted, marginTop: 4 }}>
+                      {st.taken} taken · {st.missed} missed
                     </div>
                   )}
                 </Card>
               );
-            })}
+            })()}
           </div>
         )}
       </div>
@@ -981,7 +1007,7 @@ function AnalyticsScreen({ onClose, isNewUser, adherenceDaily }) {
 }
 
 // ── SCREEN 11: FAMILY/CAREGIVER TAB ──
-function FamilyScreen({ onNavigate, isNewUser }) {
+function FamilyScreen({ onNavigate, isNewUser, inviteLinkId }) {
   const [alertsOn, setAlertsOn] = useState2(true);
   // Real family links from the backend when connected; demo sample otherwise.
   const apiOn = window.SaathiPillAPI && SaathiPillAPI.enabled && SaathiPillAPI.hasSession();
@@ -989,17 +1015,49 @@ function FamilyScreen({ onNavigate, isNewUser }) {
   const [invites, setInvites] = React.useState([]);         // caregiver invites addressed to me
   const [careFor, setCareFor] = React.useState([]);         // people I care for (I'm the member)
   const [busy, setBusy] = React.useState(false);
+  const [inviteError, setInviteError] = React.useState(null);
 
   const reload = React.useCallback(() => {
     if (!apiOn) return;
     SaathiPillAPI.family().then(setRealFamily).catch(() => {});
-    SaathiPillAPI.caregivingInvites().then((x) => setInvites(x || [])).catch(() => {});
+    // Invites matched to my phone — plus, when I arrived via an invite link,
+    // that specific invite fetched by id (works even if the phone was mistyped).
+    SaathiPillAPI.caregivingInvites().then(async (x) => {
+      let list = x || [];
+      if (inviteLinkId && !list.some((i) => i.id === inviteLinkId)) {
+        try {
+          const extra = await SaathiPillAPI.caregivingInvite(inviteLinkId);
+          if (extra && extra.id) list = [extra, ...list];
+        } catch (e) { /* already accepted/declined or invalid — nothing to show */ }
+      }
+      setInvites(list);
+    }).catch(() => {});
     SaathiPillAPI.caregiving().then((x) => setCareFor(x || [])).catch(() => {});
-  }, [apiOn]);
+  }, [apiOn, inviteLinkId]);
   React.useEffect(() => { reload(); }, [reload]);
 
-  const acceptInvite = (id) => { setBusy(true); SaathiPillAPI.acceptCaregiving(id).then(reload).catch(() => {}).finally(() => setBusy(false)); };
-  const declineInvite = (id) => { setBusy(true); SaathiPillAPI.declineCaregiving(id).then(reload).catch(() => {}).finally(() => setBusy(false)); };
+  // Keep statuses live: a pending caregiver flips to Active without the owner
+  // having to leave and re-open the tab.
+  React.useEffect(() => {
+    if (!apiOn) return;
+    const onFocus = () => reload();
+    window.addEventListener('focus', onFocus);
+    const iv = setInterval(reload, 20000);
+    return () => { window.removeEventListener('focus', onFocus); clearInterval(iv); };
+  }, [apiOn, reload]);
+
+  const acceptInvite = (id) => {
+    setBusy(true); setInviteError(null);
+    SaathiPillAPI.acceptCaregiving(id).then(reload)
+      .catch((e) => setInviteError((e && e.message) || 'Could not accept the invite. Please try again.'))
+      .finally(() => setBusy(false));
+  };
+  const declineInvite = (id) => {
+    setBusy(true); setInviteError(null);
+    SaathiPillAPI.declineCaregiving(id).then(reload)
+      .catch((e) => setInviteError((e && e.message) || 'Could not decline the invite. Please try again.'))
+      .finally(() => setBusy(false));
+  };
 
   const openCareFor = (c) => onNavigate('caregiver', {
     member: { name: c.ownerName, ownerName: c.ownerName, relationship: c.relationship },
@@ -1050,6 +1108,7 @@ function FamilyScreen({ onNavigate, isNewUser }) {
         memberName: l.memberName,
         relationship: l.relationship,
         memberPhone: l.memberPhone,
+        memberExists: !!l.memberExists,
         permissions: l.permissions || [],
         pending: l.status !== 'active',
         initials: (l.memberName || '?').split(' ').map(s => s[0]).slice(0, 2).join('').toUpperCase(),
@@ -1065,7 +1124,15 @@ function FamilyScreen({ onNavigate, isNewUser }) {
   const ownerName = (window.SaathiPillAPI && SaathiPillAPI.userName && SaathiPillAPI.userName()) || '';
   const inviteLinkFor = (f) => {
     const base = (typeof window !== 'undefined') ? (window.location.origin + window.location.pathname) : '';
-    const qs = new URLSearchParams({ invite: '1', name: f.memberName || '', rel: f.relationship || '', by: ownerName, perm: (f.permissions || []).join(',') }).toString();
+    // `link` carries the invite id so the recipient can accept THIS invite even
+    // if the phone number on it doesn't match their account. `existing`+`phone`
+    // send account-holders to LOG IN (prefilled) instead of sign-up.
+    const qs = new URLSearchParams({
+      invite: '1', link: f.id || '', name: f.memberName || '', rel: f.relationship || '', by: ownerName,
+      perm: (f.permissions || []).join(','),
+      existing: f.memberExists ? '1' : '',
+      phone: f.memberPhone || '',
+    }).toString();
     return base + '?' + qs;
   };
   const smsHrefFor = (f) => {
@@ -1114,6 +1181,11 @@ function FamilyScreen({ onNavigate, isNewUser }) {
       <div style={{ padding: '20px 20px 100px', display: 'flex', flexDirection: 'column', gap: 14 }}>
 
         {/* Caregiver invites addressed to me — accept to start helping */}
+        {apiOn && inviteError && (
+          <div style={{ padding: '12px 14px', borderRadius: 12, background: '#FEF2F2', border: `1px solid ${C.red}44`, fontFamily: fonts.body, fontSize: 13, fontWeight: 600, color: C.red }}>
+            {inviteError}
+          </div>
+        )}
         {apiOn && invites.length > 0 && (
           <>
             <SectionHeader title="Caregiver invites" />
@@ -1635,13 +1707,25 @@ function AddFamilyMemberScreen({ onClose, onAdded, userName }) {
     { id: 'add_medicines',  icon: '💊', title: 'Add medicines',      sub: 'Add new medicines to your list for you.' },
   ];
 
-  // Build a deep link the family member can open to register with details
-  // pre-filled. The patient app reads ?invite=1&name&rel&by&perm on load.
+  // The invite row created on "Send invite" — its id goes into the link so the
+  // recipient can accept THIS invite even if their account phone differs.
+  const [createdInvite, setCreatedInvite] = React.useState(null);
+
+  // Build a deep link the family member can open to join with details
+  // pre-filled. The patient app reads ?invite=1&link&name&rel&by&perm on load.
+  // When the number already has an account, the link opens LOG IN with the
+  // phone prefilled instead of sign-up.
   const inviteLink = React.useMemo(() => {
     const base = (typeof window !== 'undefined') ? (window.location.origin + window.location.pathname) : '';
-    const qs = new URLSearchParams({ invite: '1', name: name || '', rel: relation || '', by: userName || '', perm: permissions.join(',') }).toString();
+    const qs = new URLSearchParams({
+      invite: '1',
+      link: (createdInvite && createdInvite.id) || '',
+      name: name || '', rel: relation || '', by: userName || '', perm: permissions.join(','),
+      existing: (createdInvite && createdInvite.memberExists) ? '1' : '',
+      phone: phone || '',
+    }).toString();
     return base + '?' + qs;
-  }, [name, relation, permissions, userName]);
+  }, [name, relation, permissions, userName, createdInvite, phone]);
 
   // Pre-composed SMS to the caregiver's number, carrying the join link. Opening it
   // hands off to the phone's Messages app with everything filled in.
@@ -1812,7 +1896,14 @@ function AddFamilyMemberScreen({ onClose, onAdded, userName }) {
             </button>
 
             <Btn
-              onClick={() => { onAdded && onAdded({ name, relation, phone, permissions }); setSent(true); }}
+              onClick={() => {
+                // onAdded creates the invite on the backend and resolves with the
+                // row — its id completes the share link on the next screen.
+                Promise.resolve(onAdded && onAdded({ name, relation, phone, permissions }))
+                  .then((row) => { if (row && row.id) setCreatedInvite(row); })
+                  .catch(() => {});
+                setSent(true);
+              }}
               disabled={!name || !relation || phone.length !== 10 || !consent || permissions.length === 0}
               icon="📤"
             >Send invite</Btn>

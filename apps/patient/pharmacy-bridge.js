@@ -208,6 +208,11 @@
         _socket.on('dose.reminder', function (d) {
           try { window.dispatchEvent(new CustomEvent('sp_dose_reminder', { detail: d || {} })); } catch (e) {}
         });
+        // A dose was acted on (this device, the desktop notification, another
+        // device, or a caregiver) → dismiss reminders showing for it everywhere.
+        _socket.on('dose.updated', function (d) {
+          try { window.dispatchEvent(new CustomEvent('sp_dose_updated', { detail: d || {} })); } catch (e) {}
+        });
       } catch (e) {}
     }
     if (window.io) { connect(); return; }

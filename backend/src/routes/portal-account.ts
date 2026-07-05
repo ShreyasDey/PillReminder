@@ -7,6 +7,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { issueTokens } from "../services/tokens.js";
+import { sendPushToUser, vapidPublicKey } from "../lib/webpush.js";
 
 const CODE_RE = /^[A-Z0-9]{4}-[A-Z0-9]{5}$/;
 
@@ -31,6 +32,40 @@ export default async function portalAccountRoutes(app: FastifyInstance) {
       role: user?.role,
       pharmacy: user?.pharmacy ?? null,
     };
+  });
+
+  // ── Web Push (desktop notifications: restock reminders, new orders) ──
+  // Same contract as the patient app's /api/push/* but for pharmacist accounts.
+  app.get("/push/vapid", async () => ({ publicKey: vapidPublicKey }));
+
+  app.post("/push/subscribe", async (req, reply) => {
+    const body = z
+      .object({
+        endpoint: z.string().url(),
+        keys: z.object({ p256dh: z.string(), auth: z.string() }),
+      })
+      .parse(req.body);
+    await prisma.pushSubscription.upsert({
+      where: { endpoint: body.endpoint },
+      update: { userId: req.user.sub, p256dh: body.keys.p256dh, auth: body.keys.auth },
+      create: { userId: req.user.sub, endpoint: body.endpoint, p256dh: body.keys.p256dh, auth: body.keys.auth },
+    });
+    return reply.code(201).send({ ok: true });
+  });
+
+  app.post("/push/unsubscribe", async (req) => {
+    const body = z.object({ endpoint: z.string() }).parse(req.body);
+    await prisma.pushSubscription.deleteMany({ where: { endpoint: body.endpoint, userId: req.user.sub } });
+    return { ok: true };
+  });
+
+  app.post("/push/test", async (req) => {
+    await sendPushToUser(req.user.sub, {
+      title: "Portal notifications are on ✅",
+      body: "You'll get restock reminders and new-order alerts here, even with the tab closed.",
+      tag: "test",
+    });
+    return { ok: true };
   });
 
   // List pharmacies this pharmacist owns/runs (currently one active at a time).

@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { emitToPatient, emitToPharmacy } from "../lib/realtime.js";
-import { notify } from "../lib/notify.js";
+import { notify, sendSms } from "../lib/notify.js";
 import { adherencePct, dailyAdherenceSeries, ymd } from "../lib/schedule.js";
 import { computeDemand7d, suggestedOrderQty } from "../lib/demand.js";
 
@@ -23,15 +23,49 @@ export default async function portalRoutes(app: FastifyInstance) {
 
   app.patch("/pharmacy", async (req, reply) => {
     const body = z
-      .object({ name: z.string().optional(), location: z.string().optional(), hours: z.string().optional(), lat: z.number().optional(), lng: z.number().optional(), code: z.string().optional() })
+      .object({
+        name: z.string().optional(),
+        location: z.string().optional(),
+        hours: z.string().optional(),
+        lat: z.number().optional(),
+        lng: z.number().optional(),
+        code: z.string().optional(),
+        // Restock reminder customization (portal Settings)
+        restockRemindersOn: z.boolean().optional(),
+        restockRemindHour: z.number().int().min(0).max(23).optional(),
+        restockLeadDays: z.number().int().min(1).max(60).optional(),
+      })
       .parse(req.body);
+    const current = await prisma.pharmacy.findUnique({ where: { id: req.user.pharmacyId! } });
     if (body.code) {
       if (!CODE_RE.test(body.code)) return reply.code(400).send({ error: "Invalid code format" });
       const clash = await prisma.pharmacy.findUnique({ where: { code: body.code } });
       if (clash && clash.id !== req.user.pharmacyId)
         return reply.code(409).send({ error: "Code already in use" });
     }
-    return prisma.pharmacy.update({ where: { id: req.user.pharmacyId! }, data: body });
+    const updated = await prisma.pharmacy.update({ where: { id: req.user.pharmacyId! }, data: body });
+    // Changing the code must not orphan patients who linked with the old one —
+    // migrate their stored codes so their pharmacy link keeps working.
+    if (body.code && current && body.code !== current.code) {
+      const linked = await prisma.patientProfile.findMany({
+        where: {
+          OR: [
+            { linkedPharmacyCode: current.code },
+            { linkedPharmacyCodes: { has: current.code } },
+          ],
+        },
+      });
+      for (const p of linked) {
+        await prisma.patientProfile.update({
+          where: { id: p.id },
+          data: {
+            linkedPharmacyCode: p.linkedPharmacyCode === current.code ? body.code : p.linkedPharmacyCode,
+            linkedPharmacyCodes: p.linkedPharmacyCodes.map((c) => (c === current.code ? body.code! : c)),
+          },
+        });
+      }
+    }
+    return updated;
   });
 
   // ── Patients (linked to this pharmacy via code) ──
@@ -276,6 +310,32 @@ export default async function portalRoutes(app: FastifyInstance) {
     prisma.pharmacyPush.findMany({ where: { pharmacyId: req.user.pharmacyId! }, orderBy: { pushedAt: "desc" } }),
   );
 
+  // ── Message a patient ──
+  // Delivered for real: in-app notification + web push now, SMS once a gateway
+  // (SMS_PROVIDER) is configured. Only patients linked to this pharmacy.
+  app.post("/sms", async (req, reply) => {
+    const body = z.object({ patientId: z.string(), message: z.string().min(1).max(1000) }).parse(req.body);
+    const pharmacy = await prisma.pharmacy.findUnique({ where: { id: req.user.pharmacyId! } });
+    if (!pharmacy) return reply.code(404).send({ error: "Pharmacy not found" });
+    const profile = await prisma.patientProfile.findUnique({
+      where: { userId: body.patientId },
+      include: { user: true },
+    });
+    const isLinked =
+      profile &&
+      (profile.linkedPharmacyCode === pharmacy.code || profile.linkedPharmacyCodes.includes(pharmacy.code));
+    if (!isLinked) return reply.code(404).send({ error: "Patient not linked to this pharmacy" });
+
+    await notify({
+      userId: body.patientId,
+      kind: "pharmacy-message",
+      title: `💬 Message from ${pharmacy.name}`,
+      body: body.message,
+    });
+    await sendSms(profile.user.phone, body.message);
+    return { ok: true, smsGateway: !!process.env.SMS_PROVIDER };
+  });
+
   // ── Inventory ──
   // Demand (7d) is computed live from sales history; suggestedOrder tells the
   // pharmacy how many units to reorder to reach ~2 weeks of cover.
@@ -475,13 +535,84 @@ export default async function portalRoutes(app: FastifyInstance) {
   });
 
   // ── Analytics ──
-  app.get("/analytics/revenue", async (req) => {
+  // Everything the Analytics screen shows beyond the dashboard revenue series:
+  // top medicines sold (this month, from real counter sales), plus age and
+  // condition breakdowns of the patients linked to this pharmacy.
+  app.get("/analytics", async (req) => {
+    const pharmacyId = req.user.pharmacyId!;
+    const pharmacy = await prisma.pharmacy.findUnique({ where: { id: pharmacyId } });
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    // Top medicines by revenue this month, from dispense line items.
     const dispenses = await prisma.dispense.findMany({
-      where: { pharmacyId: req.user.pharmacyId! },
-      orderBy: { at: "desc" },
-      take: 200,
+      where: { pharmacyId, at: { gte: monthStart } },
+      select: { items: true },
     });
-    const total = dispenses.reduce((s, d) => s + d.total, 0);
-    return { total, count: dispenses.length, dispenses };
+    const byMed = new Map<string, { units: number; revenue: number }>();
+    for (const d of dispenses) {
+      for (const it of (d.items as { name?: string; qty?: number; mrp?: number }[]) ?? []) {
+        if (!it?.name) continue;
+        const agg = byMed.get(it.name) ?? { units: 0, revenue: 0 };
+        agg.units += it.qty ?? 0;
+        agg.revenue += (it.qty ?? 0) * (it.mrp ?? 0);
+        byMed.set(it.name, agg);
+      }
+    }
+    const topMeds = [...byMed.entries()]
+      .map(([name, v]) => ({ name, units: v.units, revenue: v.revenue }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    // Patient demographics from linked profiles.
+    const profiles = pharmacy
+      ? await prisma.patientProfile.findMany({
+          where: {
+            OR: [
+              { linkedPharmacyCode: pharmacy.code },
+              { linkedPharmacyCodes: { has: pharmacy.code } },
+            ],
+          },
+        })
+      : [];
+    const ranges: [string, number, number][] = [["Under 40", 0, 39], ["40-49", 40, 49], ["50-59", 50, 59], ["60-69", 60, 69], ["70+", 70, 200]];
+    const withAge = profiles.filter((p) => p.age != null);
+    const ageGroups = ranges
+      .map(([range, lo, hi]) => {
+        const count = withAge.filter((p) => p.age! >= lo && p.age! <= hi).length;
+        return { range, count, pct: withAge.length ? Math.round((count / withAge.length) * 100) : 0 };
+      })
+      .filter((g) => g.count > 0);
+
+    const byCondition = new Map<string, number>();
+    for (const p of profiles) {
+      for (const c of p.conditions) byCondition.set(c, (byCondition.get(c) ?? 0) + 1);
+    }
+    const conditions = [...byCondition.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 6);
+
+    // Insight: how many patients manage multiple conditions, and the top pair.
+    const multi = profiles.filter((p) => p.conditions.length > 1);
+    const pairCounts = new Map<string, number>();
+    for (const p of multi) {
+      const sorted = [...p.conditions].sort();
+      for (let i = 0; i < sorted.length; i++)
+        for (let j = i + 1; j < sorted.length; j++) {
+          const key = `${sorted[i]} + ${sorted[j]}`;
+          pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
+        }
+    }
+    const topPair = [...pairCounts.entries()].sort((a, b) => b[1] - a[1])[0] ?? null;
+
+    return {
+      topMeds,
+      ageGroups,
+      conditions,
+      patientCount: profiles.length,
+      multiConditionPct: profiles.length ? Math.round((multi.length / profiles.length) * 100) : 0,
+      topConditionPair: topPair ? { pair: topPair[0], count: topPair[1] } : null,
+    };
   });
 }

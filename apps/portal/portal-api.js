@@ -132,6 +132,18 @@
     createOffer: function (body) { return req('/portal/offers', { method: 'POST', body: JSON.stringify(body) }); },
     updateOffer: function (id, body) { return req('/portal/offers/' + id, { method: 'PATCH', body: JSON.stringify(body) }); },
 
+    // Web Push (desktop notifications for restock reminders + new orders).
+    vapidKey: function () { return req('/portal/push/vapid'); },
+    subscribePush: function (sub) { return req('/portal/push/subscribe', { method: 'POST', body: JSON.stringify(sub) }); },
+    unsubscribePush: function (endpoint) { return req('/portal/push/unsubscribe', { method: 'POST', body: JSON.stringify({ endpoint: endpoint }) }); },
+    pushTest: function () { return req('/portal/push/test', { method: 'POST', body: '{}' }); },
+
+    // Analytics beyond the dashboard: top meds sold + patient demographics.
+    analytics: function () { return req('/portal/analytics'); },
+    // Message a patient — lands in their app (notification + web push); SMS too
+    // once a gateway is configured on the server.
+    sendSms: function (patientId, message) { return req('/portal/sms', { method: 'POST', body: JSON.stringify({ patientId: patientId, message: message }) }); },
+
     // Prescribe-to-app + counter sale → reach the real patient via the backend.
     createPush: function (body) { return req('/portal/pushes', { method: 'POST', body: JSON.stringify(body) }); },
     createDispense: function (body) { return req('/portal/dispenses', { method: 'POST', body: JSON.stringify(body) }); },

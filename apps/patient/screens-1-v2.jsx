@@ -594,7 +594,7 @@ function todayKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-function MedicineCard({ med, onToggle, onReminderClick, pendingSync, onRemove }) {
+function MedicineCard({ med, onToggle, onReminderClick, onEditMed, pendingSync, onRemove }) {
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const isCourseComplete = med.courseEndDate && new Date(med.courseEndDate) < new Date();
   // Real wall-clock check — was previously hard-coded to '8:00 AM' || '9:00 AM' (issue #1)
@@ -603,12 +603,44 @@ function MedicineCard({ med, onToggle, onReminderClick, pendingSync, onRemove })
   const isDue = status === 'due';
   // Only treat as skipped if the skip was recorded TODAY (issue #4 — don't carry yesterday's skip)
   const isSkipped = !!med.skipped && med.skipDate === todayKey();
+  // Formatted clock time a dose was marked taken, e.g. "8:05 AM".
+  const takenTimeLabel = (() => {
+    if (!med.taken || !med.takenAt) return null;
+    const t = new Date(med.takenAt);
+    if (isNaN(t.getTime())) return null;
+    return t.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+  })();
+
   const statusColor = isCourseComplete ? C.textMuted : med.taken ? C.sage : isSkipped ? C.navy : isMissed ? C.red : isDue ? C.coral : C.amber;
-  const statusLabel = isCourseComplete ? 'Course done' : med.taken ? 'Taken' : isSkipped ? 'Skipped' : isMissed ? 'Missed' : isDue ? 'Due now' : 'Upcoming';
+  const statusLabel = isCourseComplete ? 'Course done' : med.taken ? (takenTimeLabel ? `Taken at ${takenTimeLabel}` : 'Taken') : isSkipped ? 'Skipped' : isMissed ? 'Missed' : isDue ? 'Due now' : 'Upcoming';
   const isPending = !!(pendingSync && pendingSync[med.id]);
 
+  // "Taken late by 1h 20m" — compare when it was marked taken vs its scheduled
+  // time (same day). A 5-minute grace keeps on-time marks clean.
+  const lateLabel = (() => {
+    if (!med.taken || !med.takenAt || !med.time) return null;
+    const m = String(med.time).match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!m) return null;
+    let h = parseInt(m[1], 10) % 12;
+    if (m[3].toUpperCase() === 'PM') h += 12;
+    const taken = new Date(med.takenAt);
+    if (isNaN(taken.getTime())) return null;
+    const sched = new Date(med.takenAt);
+    sched.setHours(h, parseInt(m[2], 10), 0, 0);
+    const diffMin = Math.floor((taken.getTime() - sched.getTime()) / 60000);
+    if (diffMin < 5) return null;
+    const hh = Math.floor(diffMin / 60), mm = diffMin % 60;
+    return 'Taken late by ' + (hh > 0 ? hh + 'h ' : '') + (mm > 0 || hh === 0 ? mm + 'm' : '').trim();
+  })();
+
   return (
-    <Card style={{ marginBottom: 10, opacity: isCourseComplete ? 0.65 : isSkipped ? 0.78 : 1 }} onClick={() => !isCourseComplete && !med.taken && !isSkipped && onReminderClick(med)}>
+    // Tapping a due/missed medicine opens the actionable reminder; tapping any
+    // other medicine opens the edit screen (change time / reminder behaviour).
+    <Card style={{ marginBottom: 10, opacity: isCourseComplete ? 0.65 : isSkipped ? 0.78 : 1 }} onClick={() => {
+      if (isCourseComplete) return;
+      if (!med.taken && !isSkipped && (isDue || isMissed)) { onReminderClick(med); return; }
+      if (onEditMed) onEditMed(med);
+    }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
         {/* Pill icon */}
         <div style={{
@@ -661,6 +693,14 @@ function MedicineCard({ med, onToggle, onReminderClick, pendingSync, onRemove })
             <Tag icon="🍽️">{med.meal}</Tag>
             {med.scheduleLabel && <Tag icon="📆">{med.scheduleLabel}</Tag>}
             {isCourseComplete && <Tag icon="📅">Course ended</Tag>}
+            {lateLabel && (
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 4,
+                padding: '3px 9px', borderRadius: 8,
+                background: '#FEF3DC', color: C.amber,
+                fontFamily: fonts.body, fontSize: 11.5, fontWeight: 700,
+              }}>⏱ {lateLabel}</span>
+            )}
           </div>
           {isSkipped && med.skipReason && (
             <div style={{
@@ -678,18 +718,8 @@ function MedicineCard({ med, onToggle, onReminderClick, pendingSync, onRemove })
             </div>
           )}
 
-          {/* Stop taking — when the doctor has discontinued this medicine, remove it. */}
-          {onRemove && (
-            confirmDelete ? (
-              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <span style={{ fontFamily: fonts.body, fontSize: 12, color: C.text, fontWeight: 600 }}>Stop taking & remove from your app?</span>
-                <button onClick={(e) => { e.stopPropagation(); onRemove(med); }} style={{ padding: '5px 11px', borderRadius: 8, border: 'none', background: C.red, color: C.white, fontFamily: fonts.body, fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Yes, stop</button>
-                <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(false); }} style={{ padding: '5px 11px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.textMuted, fontFamily: fonts.body, fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-              </div>
-            ) : (
-              <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(true); }} style={{ marginTop: 8, padding: 0, background: 'none', border: 'none', color: C.textMuted, fontFamily: fonts.body, fontSize: 12, fontWeight: 600, cursor: 'pointer', textDecoration: 'underline' }}>🛑 Doctor stopped this medicine</button>
-            )
-          )}
+          {/* Stopping a medicine now happens from the dose reminder ("Doctor told
+              me to stop") instead of a permanent label on every card. */}
         </div>
 
         {/* Toggle — hidden for completed courses */}
@@ -838,7 +868,7 @@ function PharmacyInbox({ pushes, onAccept, onDismiss }) {
   );
 }
 
-function HomeScreen({ onNavigate, onAddMed, onLogSymptoms, onAddAppointment, onReminderClick, onAppointmentReminder, userName, isNewUser, userMeds, userAppointments, onToggleMed, onStopMed, pendingSync, isOffline, pendingPushes, onAcceptPush, onDismissPush, adherenceDaily }) {
+function HomeScreen({ onNavigate, onAddMed, onLogSymptoms, onAddAppointment, onReminderClick, onEditMed, onAppointmentReminder, userName, isNewUser, userMeds, userAppointments, onToggleMed, onStopMed, pendingSync, isOffline, pendingPushes, onAcceptPush, onDismissPush, adherenceDaily }) {
   const [fabOpen, setFabOpen] = useState(false);
   const closeFab = () => setFabOpen(false);
   const fabActions = [
@@ -984,7 +1014,7 @@ function HomeScreen({ onNavigate, onAddMed, onLogSymptoms, onAddAppointment, onR
           </div> :
           <>
             {activeMeds.map((med) =>
-              <MedicineCard key={med.id} med={med} onToggle={toggleMed} onReminderClick={onReminderClick} pendingSync={pendingSync} onRemove={onStopMed} />
+              <MedicineCard key={med.id} med={med} onToggle={toggleMed} onReminderClick={onReminderClick} onEditMed={onEditMed} pendingSync={pendingSync} onRemove={onStopMed} />
             )}
             {restingMeds.length > 0 && (
               <div style={{ marginTop: 14, padding: '12px 14px', borderRadius: 14, background: C.warmGrayLight, border: `1px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -1886,9 +1916,13 @@ function AddMedicineScreen({ onDone, onClose, forMember }) {
 }
 
 // ── SCREEN: LOGIN / SIGN UP ──
-function AuthScreen({ onLogin, onSignUp, showDemoHints = false, invite = null }) {
-  const [mode, setMode] = useState(invite ? 'signup' : 'welcome'); // 'welcome' | 'login' | 'signup'
-  const [phone, setPhone] = useState('');
+function AuthScreen({ onLogin, onSignUp, showDemoHints = false, invite = null, joinPharmacy = null }) {
+  // An invite to a number that already has an account opens LOG IN (phone
+  // prefilled); everyone else arriving via a link starts at sign-up.
+  const [mode, setMode] = useState(
+    (invite && invite.existing) ? 'login' : (invite || joinPharmacy) ? 'signup' : 'welcome'
+  ); // 'welcome' | 'login' | 'signup'
+  const [phone, setPhone] = useState((invite && invite.existing && invite.phone) || '');
   const [otp, setOtp] = useState(['', '', '', '']);
   const [otpSent, setOtpSent] = useState(false);
   const [name, setName] = useState(invite?.name || '');
@@ -1931,10 +1965,19 @@ function AuthScreen({ onLogin, onSignUp, showDemoHints = false, invite = null })
     const api = window.SaathiPillAPI;
     if (api && api.enabled) {
       setBusy(true);
+      let data = null;
       try {
-        await api.verifyOtp('+91 ' + phone, code, 'patient');
+        data = await api.verifyOtp('+91 ' + phone, code, 'patient');
       } catch (e) { setError(e.message || 'Incorrect code'); setBusy(false); return; }
       setBusy(false);
+      // The backend says whether this phone already had an account. Trust that
+      // over which tab the user picked — someone with an account who follows an
+      // invite link (which opens sign-up) must land in their existing data,
+      // not in onboarding with an empty medicine list.
+      if (data && typeof data.isNew === 'boolean') {
+        if (data.isNew) onSignUp(name); else onLogin();
+        return;
+      }
     }
     if (mode === 'login') onLogin();else
     onSignUp(name);
@@ -2038,8 +2081,23 @@ function AuthScreen({ onLogin, onSignUp, showDemoHints = false, invite = null })
 
           <div style={{ flex: 1, padding: '8px 24px 32px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
+            {/* Pharmacy QR banner — shown when arriving via a counter QR scan */}
+            {joinPharmacy && !invite && mode === 'signup' && !otpSent &&
+          <div style={{ padding: '14px 16px', borderRadius: 14, background: C.sageLight, border: `1px solid ${C.sage}44`, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                <span style={{ fontSize: 22 }}>🏥</span>
+                <div>
+                  <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>
+                    Joining {joinPharmacy.name || 'your pharmacy'}
+                  </div>
+                  <div style={{ fontFamily: fonts.body, fontSize: 12.5, color: C.textMuted, lineHeight: 1.5 }}>
+                    Enter your mobile number and we’ll link {joinPharmacy.name ? `${joinPharmacy.name}` : 'the pharmacy'} to your account automatically — refills, offers and prescriptions will flow straight into the app. Already using SaathiPill? The same number simply logs you in.
+                  </div>
+                </div>
+              </div>
+          }
+
             {/* Caregiver invite banner — shown when arriving via a family invite link */}
-            {invite && mode === 'signup' && !otpSent &&
+            {invite && !otpSent &&
           <div style={{ padding: '14px 16px', borderRadius: 14, background: C.sageLight, border: `1px solid ${C.sage}44`, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <span style={{ fontSize: 22 }}>🤝</span>
                 <div>
@@ -2047,7 +2105,9 @@ function AuthScreen({ onLogin, onSignUp, showDemoHints = false, invite = null })
                     {invite.by ? `${invite.by} invited you to SaathiPill` : 'You’ve been invited to SaathiPill'}
                   </div>
                   <div style={{ fontFamily: fonts.body, fontSize: 12.5, color: C.textMuted, lineHeight: 1.5 }}>
-                    Create your account{invite.relation ? ` as ${invite.by ? `${invite.by}’s` : 'their'} ${invite.relation.toLowerCase()}` : ''} to help manage {invite.by ? `${invite.by}’s` : 'their'} medicines. Your name is filled in — you’ll be able to {invitePermPhrase}.
+                    {mode === 'login'
+                      ? <>Welcome back — log in to accept the invite and help manage {invite.by ? `${invite.by}’s` : 'their'} medicines. You’ll be able to {invitePermPhrase}.</>
+                      : <>Enter your mobile number to help manage {invite.by ? `${invite.by}’s` : 'their'} medicines — you’ll be able to {invitePermPhrase}. Already using SaathiPill? The same number simply logs you in, nothing is lost.</>}
                   </div>
                 </div>
               </div>
@@ -2168,4 +2228,112 @@ function AuthScreen({ onLogin, onSignUp, showDemoHints = false, invite = null })
 }
 
 // Export all
-Object.assign(window, { SplashScreen, OnboardingScreen, ProfileSetupScreen, HomeScreen, AddMedicineScreen, AuthScreen, C, fonts, Card, Btn, Pill, Tag, SectionHeader, medicines, CompletedCoursesSection });
+// ── Edit a medicine's time + reminder behaviour (tap the medicine in Today) ──
+function EditMedicineScreen({ med, onClose, onSave }) {
+  const m = med || {};
+  const [time, setTime] = React.useState(m.time || '8:00 AM');
+  // 'off' | '0' | '10' | '30' — how the reminder should fire for this medicine
+  const [remind, setRemind] = React.useState(m.remindersOn === false ? 'off' : String(m.remindBeforeMin || 0));
+  const [saving, setSaving] = React.useState(false);
+
+  const to24 = (t) => {
+    const x = String(t || '').match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!x) return '08:00';
+    let h = parseInt(x[1], 10) % 12;
+    if (x[3].toUpperCase() === 'PM') h += 12;
+    return String(h).padStart(2, '0') + ':' + x[2];
+  };
+  const to12 = (v) => {
+    const [hh, mm] = String(v || '08:00').split(':');
+    let h = parseInt(hh, 10);
+    const ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return h + ':' + mm + ' ' + ap;
+  };
+
+  const presets = ['8:00 AM', '1:00 PM', '5:00 PM', '9:00 PM'];
+  const remindOptions = [
+    ['0',   '🔔', 'At the scheduled time'],
+    ['10',  '⏳', '10 minutes early'],
+    ['30',  '⏳', '30 minutes early'],
+    ['off', '🔕', 'No reminders for this medicine'],
+  ];
+
+  const save = () => {
+    if (saving) return;
+    setSaving(true);
+    Promise.resolve(onSave && onSave({
+      time,
+      remindersOn: remind !== 'off',
+      remindBeforeMin: remind === 'off' ? (m.remindBeforeMin || 0) : parseInt(remind, 10),
+    })).finally(() => setSaving(false));
+  };
+
+  return (
+    <div style={{ flex: 1, background: C.cream, display: 'flex', flexDirection: 'column' }}>
+      <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <button onClick={onClose} style={{ width: 40, height: 40, borderRadius: 12, background: C.warmGrayLight, border: 'none', fontSize: 18, cursor: 'pointer' }}>←</button>
+        <div>
+          <div style={{ fontFamily: fonts.heading, fontSize: 20, fontWeight: 700, color: C.text }}>Edit {m.name || 'medicine'}</div>
+          <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted }}>{m.dose}{m.meal ? ` · ${m.meal}` : ''}</div>
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflow: 'auto', padding: '4px 20px 24px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* Time */}
+        <div>
+          <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 10 }}>🕐 When should it be taken?</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+            {presets.map(p => (
+              <button key={p} onClick={() => setTime(p)} style={{
+                padding: '10px 14px', borderRadius: 12,
+                border: `2px solid ${time === p ? C.coral : C.border}`,
+                background: time === p ? C.coralLight : C.white,
+                color: time === p ? C.coral : C.text,
+                fontFamily: fonts.body, fontSize: 14, fontWeight: 700, cursor: 'pointer',
+              }}>{p}</button>
+            ))}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontFamily: fonts.body, fontSize: 13, color: C.textMuted }}>Or pick exactly:</span>
+            <input type="time" value={to24(time)} onChange={e => e.target.value && setTime(to12(e.target.value))}
+              style={{ height: 44, padding: '0 12px', borderRadius: 12, border: `2px solid ${C.border}`, background: C.white, fontFamily: fonts.body, fontSize: 15, color: C.text, outline: 'none' }} />
+            <span style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: C.coral }}>{time}</span>
+          </div>
+        </div>
+
+        {/* Reminder behaviour */}
+        <div>
+          <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>🔔 When should we remind you?</div>
+          <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted, marginBottom: 10 }}>Reminders repeat every 30 minutes until you act, starting from the moment below.</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {remindOptions.map(([id, icon, label]) => (
+              <button key={id} onClick={() => setRemind(id)} style={{
+                display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                padding: '13px 15px', borderRadius: 14, textAlign: 'left',
+                border: `2px solid ${remind === id ? C.coral : C.border}`,
+                background: remind === id ? C.coralLight : C.white, cursor: 'pointer',
+              }}>
+                <span style={{ fontSize: 20 }}>{icon}</span>
+                <span style={{ flex: 1, fontFamily: fonts.body, fontSize: 14.5, fontWeight: 700, color: remind === id ? C.coral : C.text }}>{label}</span>
+                {remind === id && <span style={{ color: C.coral, fontWeight: 800 }}>✓</span>}
+              </button>
+            ))}
+          </div>
+          {remind === 'off' && (
+            <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 12, background: C.amberLight, fontFamily: fonts.body, fontSize: 12, color: C.text, lineHeight: 1.5 }}>
+              ⚠️ You won't get any notifications for {m.name || 'this medicine'} — it stays on your list and still counts in adherence.
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ padding: '12px 20px 28px', display: 'flex', gap: 10 }}>
+        <Btn variant="outline" onClick={onClose} style={{ flex: 1 }}>Cancel</Btn>
+        <Btn onClick={save} style={{ flex: 2 }} icon="✓">{saving ? 'Saving…' : 'Save changes'}</Btn>
+      </div>
+    </div>
+  );
+}
+
+Object.assign(window, { SplashScreen, OnboardingScreen, ProfileSetupScreen, HomeScreen, AddMedicineScreen, AuthScreen, EditMedicineScreen, C, fonts, Card, Btn, Pill, Tag, SectionHeader, medicines, CompletedCoursesSection });

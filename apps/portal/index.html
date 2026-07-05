@@ -10,8 +10,11 @@
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="env.js"></script>
 <script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="portal-api.js"></script>
+<script src="push-client.js"></script>
 <script src="pharmacy-bridge.js"></script>
 <script type="text/babel" src="portal-data.jsx"></script>
 <script type="text/babel" src="portal-shared.jsx"></script>
@@ -487,12 +490,12 @@ function SmsModal({ patient, onClose, onSend }) {
           marginTop: 14, padding: 12, background: C.creamWarm, borderRadius: 6,
           fontSize: 11, color: C.textMid, fontWeight: 500, lineHeight: 1.5,
         }}>
-          <strong style={{ color: C.text }}>Sent via:</strong> SaathiPill SMS gateway ({patient?.phone}) · Delivery receipt will be logged in patient timeline.
+          <strong style={{ color: C.text }}>Delivered to:</strong> {patient?.name}'s SaathiPill app (notification + phone push){patient?.phone ? ` · SMS to ${patient.phone} when the SMS gateway is enabled` : ''}.
         </div>
       </div>
       <div style={{ padding: '14px 22px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end', gap: 8, background: C.cream }}>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button variant="success" onClick={onSend} icon={<span>✉</span>}>Send SMS</Button>
+        <Button variant="success" onClick={() => onSend(message)} icon={<span>✉</span>}>Send message</Button>
       </div>
     </Modal>
   );
@@ -1286,7 +1289,17 @@ function App() {
       </main>
 
       {/* Modals */}
-      <SmsModal patient={smsPatient} onClose={() => setSmsPatient(null)} onSend={() => { setSmsPatient(null); setToast({ msg: 'SMS sent', kind: 'success' }); }} />
+      <SmsModal patient={smsPatient} onClose={() => setSmsPatient(null)} onSend={(message) => {
+        const p = smsPatient;
+        setSmsPatient(null);
+        if (window.PortalAPI && PortalAPI.enabled && p && p.id) {
+          PortalAPI.sendSms(p.id, message)
+            .then(() => setToast({ msg: `Message delivered to ${p.name}'s app`, kind: 'success' }))
+            .catch((e) => setToast({ msg: 'Could not send: ' + e.message, kind: 'error' }));
+        } else {
+          setToast({ msg: 'Demo mode — message not really sent', kind: 'info' });
+        }
+      }} />
       <DeclineModal patient={declinePatient} onClose={() => { setDeclinePatient(null); setDeclineRefill(null); }} onConfirm={(reason) => {
         if (window.PortalAPI && PortalAPI.enabled && declineRefill && declineRefill.realId) {
           PortalAPI.updateRefillStatus(declineRefill.realId, 'declined', reason).then(refreshRefills).catch(() => {});
@@ -1540,6 +1553,10 @@ function Root() {
       }).catch(() => {});
       // Go live so patient accepts / inventory changes stream back to the portal.
       if (window.PharmacyBridge && PharmacyBridge.connectRealtime) PharmacyBridge.connectRealtime();
+      // Ask for notification permission right away so restock/new-order alerts
+      // reach the desktop; also keeps the service worker registered across
+      // tab closes and app updates. Settings toggle remains the manual path.
+      if (window.PortalPush && PortalPush.autoEnable) PortalPush.autoEnable();
       setPhase('ready');
     } catch (e) {
       // An expired / invalid session → send the user to the login screen, not a

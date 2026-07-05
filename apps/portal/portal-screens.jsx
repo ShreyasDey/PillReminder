@@ -999,17 +999,20 @@ function InventoryRow({ item, onAdd, onOrder, flash, activeOffer }) {
 
 // ── ANALYTICS ──
 function AnalyticsScreen() {
+  // Real analytics (top meds sold, demographics) from the backend; demo data
+  // inside each component when the portal runs without a backend.
+  const live = window.PortalAPI && PortalAPI.enabled;
+  const [analytics, setAnalytics] = useState(null);
+  useEffect(() => {
+    if (live) PortalAPI.analytics().then(setAnalytics).catch(() => setAnalytics(null));
+  }, []);
+
+  const monthLabel = new Date().toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
   return (
     <div>
       <PageHeader
         title="Revenue & analytics"
-        subtitle="May 2026 · Compared to Apr 2026 and May 2025"
-        right={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="ghost" size="md">Date range: Last 12 months</Button>
-            <Button variant="ghost" size="md" icon={<span>⇩</span>}>Download report</Button>
-          </div>
-        }
+        subtitle={live ? `${monthLabel} · Live from your sales and patient data` : 'May 2026 · Compared to Apr 2026 and May 2025'}
       />
 
       {/* Comparison strip — real revenue from the backend's 12-month series */}
@@ -1050,7 +1053,7 @@ function AnalyticsScreen() {
         </Card>
         <Card>
           <SectionHeader title="Top 10 medicines sold (this month)" />
-          <TopMedsTable />
+          <TopMedsTable live={live} meds={analytics && analytics.topMeds} />
         </Card>
       </div>
 
@@ -1058,11 +1061,11 @@ function AnalyticsScreen() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, padding: '0 24px 24px' }}>
         <Card>
           <SectionHeader title="Patients by age group" />
-          <AgeDistribution />
+          <AgeDistribution live={live} ages={analytics && analytics.ageGroups} />
         </Card>
         <Card>
           <SectionHeader title="Condition mix" />
-          <ConditionMix />
+          <ConditionMix live={live} data={analytics} />
         </Card>
       </div>
     </div>
@@ -1137,7 +1140,10 @@ function Revenue12Chart({ data }) {
 }
 
 function TopPatientsTable() {
-  const top = [...PATIENTS].sort((a, b) => b.spent - a.spent).slice(0, 10);
+  const top = [...PATIENTS].sort((a, b) => b.spent - a.spent).slice(0, 10).filter(p => p.spent > 0);
+  if (top.length === 0) {
+    return <EmptyAnalytics msg="No patient spending yet — delivered refill orders will rank patients here." />;
+  }
   const maxSpent = top[0].spent;
   return (
     <div style={{ padding: '4px 0 8px' }}>
@@ -1161,19 +1167,25 @@ function TopPatientsTable() {
   );
 }
 
-function TopMedsTable() {
-  const meds = [
-    { name: 'Metformin 500mg', units: 4280, revenue: 17976 },
-    { name: 'Telmisartan 40mg', units: 2840, revenue: 24140 },
-    { name: 'Atorvastatin 20mg', units: 2480, revenue: 16864 },
-    { name: 'Glimepiride 2mg', units: 1920, revenue: 10368 },
-    { name: 'Aspirin 75mg', units: 3120, revenue: 3744 },
-    { name: 'Thyronorm 50mcg', units: 1480, revenue: 5624 },
-    { name: 'Amlodipine 5mg', units: 1280, revenue: 4352 },
-    { name: 'Pantoprazole 40mg', units: 1820, revenue: 10192 },
-    { name: 'Clopidogrel 75mg', units: 1020, revenue: 9384 },
-    { name: 'Vitamin D3 60K', units: 220, revenue: 6160 },
-  ];
+function TopMedsTable({ live, meds: realMeds }) {
+  // Live mode: real dispense data from the backend (revenue arrives in paise).
+  const meds = live
+    ? (realMeds || []).map(m => ({ ...m, revenue: Math.round((m.revenue || 0) / 100) }))
+    : [
+        { name: 'Metformin 500mg', units: 4280, revenue: 17976 },
+        { name: 'Telmisartan 40mg', units: 2840, revenue: 24140 },
+        { name: 'Atorvastatin 20mg', units: 2480, revenue: 16864 },
+        { name: 'Glimepiride 2mg', units: 1920, revenue: 10368 },
+        { name: 'Aspirin 75mg', units: 3120, revenue: 3744 },
+        { name: 'Thyronorm 50mcg', units: 1480, revenue: 5624 },
+        { name: 'Amlodipine 5mg', units: 1280, revenue: 4352 },
+        { name: 'Pantoprazole 40mg', units: 1820, revenue: 10192 },
+        { name: 'Clopidogrel 75mg', units: 1020, revenue: 9384 },
+        { name: 'Vitamin D3 60K', units: 220, revenue: 6160 },
+      ];
+  if (meds.length === 0) {
+    return <EmptyAnalytics msg="No sales recorded this month yet — counter sales will show up here." />;
+  }
   const maxRev = Math.max(...meds.map(m => m.revenue));
   return (
     <div style={{ padding: '4px 0 8px' }}>
@@ -1201,13 +1213,26 @@ function TopMedsTable() {
   );
 }
 
-function AgeDistribution() {
-  const ages = [
-    { range: '40-49', pct: 14, count: 35 },
-    { range: '50-59', pct: 28, count: 69 },
-    { range: '60-69', pct: 38, count: 94 },
-    { range: '70+', pct: 20, count: 49 },
-  ];
+function EmptyAnalytics({ msg }) {
+  return (
+    <div style={{ padding: '28px 18px', textAlign: 'center', fontSize: 12.5, color: C.textMuted, fontWeight: 600, lineHeight: 1.6 }}>
+      {msg}
+    </div>
+  );
+}
+
+function AgeDistribution({ live, ages: realAges }) {
+  const ages = live
+    ? (realAges || [])
+    : [
+        { range: '40-49', pct: 14, count: 35 },
+        { range: '50-59', pct: 28, count: 69 },
+        { range: '60-69', pct: 38, count: 94 },
+        { range: '70+', pct: 20, count: 49 },
+      ];
+  if (ages.length === 0) {
+    return <EmptyAnalytics msg="No patient ages on record yet — this fills in as patients complete their profile." />;
+  }
   return (
     <div style={{ padding: '16px 18px' }}>
       {ages.map((a, i) => (
@@ -1225,15 +1250,21 @@ function AgeDistribution() {
   );
 }
 
-function ConditionMix() {
-  const conditions = [
-    { name: 'Diabetes (Type 2)', count: 142, color: '#1F3864' },
-    { name: 'Hypertension', count: 118, color: '#C0392B' },
-    { name: 'Cardiac', count: 64, color: '#D97757' },
-    { name: 'Thyroid', count: 48, color: '#5B7B5F' },
-    { name: 'COPD', count: 28, color: '#8A6418' },
-    { name: 'Cholesterol', count: 38, color: '#6B3B5E' },
-  ];
+function ConditionMix({ live, data }) {
+  const palette = ['#1F3864', '#C0392B', '#D97757', '#5B7B5F', '#8A6418', '#6B3B5E'];
+  const conditions = live
+    ? ((data && data.conditions) || []).map((c, i) => ({ ...c, color: palette[i % palette.length] }))
+    : [
+        { name: 'Diabetes (Type 2)', count: 142, color: '#1F3864' },
+        { name: 'Hypertension', count: 118, color: '#C0392B' },
+        { name: 'Cardiac', count: 64, color: '#D97757' },
+        { name: 'Thyroid', count: 48, color: '#5B7B5F' },
+        { name: 'COPD', count: 28, color: '#8A6418' },
+        { name: 'Cholesterol', count: 38, color: '#6B3B5E' },
+      ];
+  if (conditions.length === 0) {
+    return <EmptyAnalytics msg="No conditions on record yet — this fills in as patients complete their profile." />;
+  }
   const total = conditions.reduce((s, c) => s + c.count, 0);
   let acc = 0;
   return (
@@ -1253,12 +1284,21 @@ function ConditionMix() {
           </div>
         ))}
       </div>
-      <div style={{ marginTop: 14, padding: '10px 12px', background: C.cream, borderRadius: 6, border: `1px solid ${C.borderSoft}` }}>
-        <div style={{ fontSize: 11, color: C.textMid, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Insight</div>
-        <div style={{ fontSize: 12, color: C.text, marginTop: 4, lineHeight: 1.5 }}>
-          <strong style={{ color: C.navy }}>62%</strong> of your patients have multiple conditions. Diabetes + Hypertension is the most common pair (88 patients).
-        </div>
-      </div>
+      {(() => {
+        const pct = live ? (data && data.multiConditionPct) : 62;
+        const pair = live
+          ? (data && data.topConditionPair && `${data.topConditionPair.pair} is the most common pair (${data.topConditionPair.count} patient${data.topConditionPair.count === 1 ? '' : 's'}).`)
+          : 'Diabetes + Hypertension is the most common pair (88 patients).';
+        if (live && !pct && !pair) return null;
+        return (
+          <div style={{ marginTop: 14, padding: '10px 12px', background: C.cream, borderRadius: 6, border: `1px solid ${C.borderSoft}` }}>
+            <div style={{ fontSize: 11, color: C.textMid, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>Insight</div>
+            <div style={{ fontSize: 12, color: C.text, marginTop: 4, lineHeight: 1.5 }}>
+              <strong style={{ color: C.navy }}>{pct || 0}%</strong> of your patients have multiple conditions.{pair ? ` ${pair}` : ''}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -1316,29 +1356,100 @@ function PharmacyCodeInput({ value, onChange, style }) {
 
 // ── PROFILE SETUP SCREEN ──
 function ProfileSetupScreen() {
+  // Live mode: prefilled from the real account/pharmacy and saved through the
+  // backend. Fields with no backend home (email, licence, GSTIN…) are hidden
+  // so nothing pretends to save.
+  const live = window.PortalAPI && PortalAPI.enabled;
+  const initial = () => {
+    const ph = (live && window.PHARMACY) || null;
+    return live ? {
+      name: (window.PortalAPI && PortalAPI.userName()) || '',
+      title: 'Pharmacist',
+      pharmacyName: (ph && ph.name) || '',
+      address: (ph && ph.location) || '',
+      hours: (ph && ph.hours) || '',
+    } : {
+      name: 'Dr. Rajesh Sharma',
+      title: 'Owner · Pharmacist',
+      email: 'rajesh@sharmamedical.in',
+      phone: '+91 98765 43210',
+      pharmacyName: 'Sharma Medical Store',
+      address: 'Andheri West, Mumbai – 400053',
+      license: 'MH-PHM-2024-00183',
+      gstin: '27AAACS1234A1ZN',
+    };
+  };
+  const initialCode = () => (live && window.PHARMACY && window.PHARMACY.code)
+    || localStorage.getItem('sp_pharmacy_code') || 'SHRM-74219';
   const [saved, setSaved] = useState(false);
-  const [pharmacyCode, setPharmacyCode] = useState(
-    () => (localStorage.getItem('sp_pharmacy_code') || 'SHRM-74219')
-  );
-  const [profile, setProfile] = useState({
-    name: 'Dr. Rajesh Sharma',
-    title: 'Owner · Pharmacist',
-    email: 'rajesh@sharmamedical.in',
-    phone: '+91 98765 43210',
-    pharmacyName: 'Sharma Medical Store',
-    address: 'Andheri West, Mumbai – 400053',
-    license: 'MH-PHM-2024-00183',
-    gstin: '27AAACS1234A1ZN',
-  });
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState(null);
+  const [pharmacyCode, setPharmacyCode] = useState(initialCode);
+  const [profile, setProfile] = useState(initial);
 
   const update = (key, val) => setProfile(p => ({ ...p, [key]: val }));
   const isCodeValid = /^[A-Z0-9]{4}-[A-Z0-9]{5}$/.test(pharmacyCode);
 
+  // Restock (inventory refill) reminder settings — when and how eagerly the
+  // daily low-stock alert fires. Saved with the main Save button.
+  const initialRestock = () => {
+    const ph = (live && window.PHARMACY) || {};
+    return {
+      on: ph.restockRemindersOn !== false,
+      hour: (ph.restockRemindHour != null ? ph.restockRemindHour : 9),
+      days: ph.restockLeadDays || 7,
+    };
+  };
+  const [restock, setRestock] = useState(initialRestock);
+
+  const discard = () => { setProfile(initial()); setPharmacyCode(initialCode()); setRestock(initialRestock()); setSaveErr(null); };
+
+  // Desktop notifications (Web Push) — restock reminders + new-order alerts
+  // arrive as real OS notifications, even when the portal tab is closed.
+  const pushSupported = typeof window !== 'undefined' && window.PortalPush && window.PortalPush.supported;
+  const [pushOn, setPushOn] = useState(false);
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushMsg, setPushMsg] = useState('');
+  useEffect(() => {
+    if (pushSupported) window.PortalPush.isEnabled().then(setPushOn).catch(() => {});
+  }, []);
+  const togglePush = async () => {
+    if (!pushSupported || pushBusy) return;
+    setPushBusy(true); setPushMsg('');
+    try {
+      if (pushOn) {
+        await window.PortalPush.disable();
+        setPushOn(false); setPushMsg('Desktop notifications turned off.');
+      } else {
+        await window.PortalPush.enable();
+        setPushOn(true); setPushMsg('On — sending a test notification…');
+        if (window.PortalAPI && PortalAPI.pushTest) PortalAPI.pushTest().catch(() => {});
+      }
+    } catch (e) { setPushMsg(e.message || 'Could not enable notifications.'); }
+    setPushBusy(false);
+  };
+
   const handleSave = () => {
-    if (!isCodeValid) return;
-    localStorage.setItem('sp_pharmacy_code', pharmacyCode);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2400);
+    if (!isCodeValid || saving) return;
+    if (live) {
+      setSaving(true); setSaveErr(null);
+      PortalAPI.updatePharmacy({
+        name: profile.pharmacyName, location: profile.address, hours: profile.hours, code: pharmacyCode,
+        restockRemindersOn: restock.on, restockRemindHour: restock.hour, restockLeadDays: restock.days,
+      })
+        .then((ph) => {
+          setSaving(false);
+          window.PHARMACY = ph;
+          localStorage.setItem('sp_pharmacy_code', ph.code);
+          setSaved(true);
+          setTimeout(() => setSaved(false), 2400);
+        })
+        .catch((e) => { setSaving(false); setSaveErr(e.message || 'Could not save'); });
+    } else {
+      localStorage.setItem('sp_pharmacy_code', pharmacyCode);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2400);
+    }
   };
 
   return (
@@ -1347,11 +1458,12 @@ function ProfileSetupScreen() {
         title="Profile & account"
         subtitle="Your personal details and pharmacy settings"
         right={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="ghost" size="md">Discard changes</Button>
-            <Button variant="coral" size="md" disabled={!isCodeValid} onClick={handleSave}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {saveErr && <span style={{ fontSize: 12, fontWeight: 600, color: C.red }}>{saveErr}</span>}
+            <Button variant="ghost" size="md" onClick={discard}>Discard changes</Button>
+            <Button variant="coral" size="md" disabled={!isCodeValid || saving} onClick={handleSave}
               icon={saved ? <span>✓</span> : null}>
-              {saved ? 'Saved!' : 'Save changes'}
+              {saving ? 'Saving…' : saved ? 'Saved!' : 'Save changes'}
             </Button>
           </div>
         }
@@ -1363,36 +1475,44 @@ function ProfileSetupScreen() {
           <Card>
             <SectionHeader title="Personal details" />
             <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingBottom: 14, borderBottom: `1px solid ${C.borderSoft}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingBottom: live ? 0 : 14, borderBottom: live ? 'none' : `1px solid ${C.borderSoft}` }}>
                 <div style={{
                   width: 56, height: 56, borderRadius: 28,
                   background: C.navy, color: '#fff',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 20, fontWeight: 800, flexShrink: 0,
-                }}>RS</div>
+                }}>{(profile.name || 'P').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}</div>
                 <div>
                   <div style={{ fontSize: 15, fontWeight: 800, color: C.navy }}>{profile.name}</div>
                   <div style={{ fontSize: 12, color: C.textMid, marginTop: 2, fontWeight: 500 }}>{profile.title}</div>
-                  <button style={{
+                  {!live && <button style={{
                     marginTop: 5, padding: '3px 9px', borderRadius: 4,
                     border: `1px solid ${C.border}`, background: C.cream,
                     fontSize: 11, fontWeight: 600, color: C.textMid,
                     cursor: 'pointer', fontFamily: fonts.body,
-                  }}>Change photo</button>
+                  }}>Change photo</button>}
                 </div>
               </div>
-              <Field label="Full name">
-                <input value={profile.name} onChange={e => update('name', e.target.value)} style={inputStyle} />
-              </Field>
-              <Field label="Title / role">
-                <input value={profile.title} onChange={e => update('title', e.target.value)} style={inputStyle} />
-              </Field>
-              <Field label="Email">
-                <input value={profile.email} onChange={e => update('email', e.target.value)} style={inputStyle} />
-              </Field>
-              <Field label="Mobile">
-                <input value={profile.phone} onChange={e => update('phone', e.target.value)} style={inputStyle} />
-              </Field>
+              {live ? (
+                <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.6 }}>
+                  Your name and login phone come from your SaathiPill account.
+                </div>
+              ) : (
+                <>
+                  <Field label="Full name">
+                    <input value={profile.name} onChange={e => update('name', e.target.value)} style={inputStyle} />
+                  </Field>
+                  <Field label="Title / role">
+                    <input value={profile.title} onChange={e => update('title', e.target.value)} style={inputStyle} />
+                  </Field>
+                  <Field label="Email">
+                    <input value={profile.email} onChange={e => update('email', e.target.value)} style={inputStyle} />
+                  </Field>
+                  <Field label="Mobile">
+                    <input value={profile.phone} onChange={e => update('phone', e.target.value)} style={inputStyle} />
+                  </Field>
+                </>
+              )}
             </div>
           </Card>
         </div>
@@ -1408,14 +1528,20 @@ function ProfileSetupScreen() {
               <Field label="Address">
                 <input value={profile.address} onChange={e => update('address', e.target.value)} style={inputStyle} />
               </Field>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <Field label="Drug licence no.">
-                  <input value={profile.license} onChange={e => update('license', e.target.value)} style={inputStyle} />
+              {live ? (
+                <Field label="Opening hours">
+                  <input value={profile.hours} onChange={e => update('hours', e.target.value)} placeholder="e.g. 8 AM – 10 PM" style={inputStyle} />
                 </Field>
-                <Field label="GSTIN">
-                  <input value={profile.gstin} onChange={e => update('gstin', e.target.value)} style={inputStyle} />
-                </Field>
-              </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <Field label="Drug licence no.">
+                    <input value={profile.license} onChange={e => update('license', e.target.value)} style={inputStyle} />
+                  </Field>
+                  <Field label="GSTIN">
+                    <input value={profile.gstin} onChange={e => update('gstin', e.target.value)} style={inputStyle} />
+                  </Field>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -1436,25 +1562,169 @@ function ProfileSetupScreen() {
                     onClick={() => navigator.clipboard?.writeText(pharmacyCode)}>
                     ⧉ Copy code
                   </Button>
-                  <Button variant="ghost" size="sm">⇩ Download QR card</Button>
+                  {!live && <Button variant="ghost" size="sm">⇩ Download QR card</Button>}
                 </div>
               )}
+              {live && pharmacyCode !== initialCode() && (
+                <div style={{ marginTop: 12, fontSize: 12, color: C.textMid, lineHeight: 1.6 }}>
+                  Changing the code is safe — patients already linked move to the new code automatically when you save.
+                </div>
+              )}
+
+              {/* Counter QR: patients scan → patient app opens → account created/
+                  logged in → linked to this pharmacy automatically. */}
+              {isCodeValid && <PharmacyJoinQR code={pharmacyCode} pharmacyName={profile.pharmacyName} />}
             </div>
           </Card>
+
+          {/* Restock reminder settings */}
+          {live && (
+            <Card>
+              <SectionHeader title="Restock reminders" right={restock.on ? <Chip bg={C.sageSoft} color={C.sage} size={10}>ON</Chip> : <Chip bg={C.creamWarm} color={C.textMuted} size={10}>OFF</Chip>} />
+              <div style={{ padding: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: restock.on ? 16 : 0 }}>
+                  <div style={{ fontSize: 26 }}>📦</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Daily low-stock alert</div>
+                    <div style={{ fontSize: 12, color: C.textMid, marginTop: 2, lineHeight: 1.5 }}>
+                      One consolidated reminder per day listing items whose stock won't cover the coming days of demand (learned from your real sales).
+                    </div>
+                  </div>
+                  <button onClick={() => setRestock(r => ({ ...r, on: !r.on }))} style={{
+                    width: 52, height: 28, borderRadius: 14, border: 'none', flexShrink: 0, cursor: 'pointer',
+                    background: restock.on ? C.sage : C.border,
+                    display: 'flex', alignItems: 'center', padding: '0 4px',
+                    justifyContent: restock.on ? 'flex-end' : 'flex-start', transition: 'background 0.2s',
+                  }}>
+                    <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff' }} />
+                  </button>
+                </div>
+                {restock.on && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <Field label="Send the alert at">
+                      <select value={restock.hour} onChange={e => setRestock(r => ({ ...r, hour: parseInt(e.target.value, 10) }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+                        {[6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].map(h => (
+                          <option key={h} value={h}>{(h % 12 || 12)}:00 {h >= 12 ? 'PM' : 'AM'}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    <Field label="Alert when stock won't cover">
+                      <select value={restock.days} onChange={e => setRestock(r => ({ ...r, days: parseInt(e.target.value, 10) }))} style={{ ...inputStyle, cursor: 'pointer' }}>
+                        {[3,5,7,10,14].map(d => <option key={d} value={d}>{d} days of demand</option>)}
+                      </select>
+                    </Field>
+                  </div>
+                )}
+                {restock.on && (
+                  <div style={{ marginTop: 12, fontSize: 11.5, color: C.textMuted, lineHeight: 1.5 }}>
+                    Delivered as a desktop notification + in the notification bell, from {(restock.hour % 12 || 12)}:00 {restock.hour >= 12 ? 'PM' : 'AM'} onwards. Remember to press <strong style={{ color: C.text }}>Save changes</strong>.
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {/* Desktop notifications (Web Push) */}
+          {live && (
+            <Card>
+              <SectionHeader title="Desktop notifications" right={pushOn ? <Chip bg={C.sageSoft} color={C.sage} size={10}>ON</Chip> : null} />
+              <div style={{ padding: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <div style={{ fontSize: 26 }}>🔔</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Restock reminders & new-order alerts</div>
+                    <div style={{ fontSize: 12, color: C.textMid, marginTop: 2, lineHeight: 1.5 }}>
+                      {pushSupported
+                        ? (pushOn ? 'Notifications appear on this computer even when the portal tab is closed.' : 'Get notified on this computer even when the portal tab is closed.')
+                        : 'Not supported on this browser.'}
+                    </div>
+                  </div>
+                  {pushSupported && (
+                    <button onClick={togglePush} disabled={pushBusy} style={{
+                      width: 52, height: 28, borderRadius: 14, border: 'none', flexShrink: 0,
+                      cursor: pushBusy ? 'default' : 'pointer',
+                      background: pushOn ? C.sage : C.border,
+                      display: 'flex', alignItems: 'center', padding: '0 4px',
+                      justifyContent: pushOn ? 'flex-end' : 'flex-start',
+                      opacity: pushBusy ? 0.6 : 1, transition: 'background 0.2s',
+                    }}>
+                      <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#fff' }} />
+                    </button>
+                  )}
+                </div>
+                {pushMsg && <div style={{ marginTop: 10, fontSize: 12, color: C.textMid, lineHeight: 1.5 }}>{pushMsg}</div>}
+              </div>
+            </Card>
+          )}
         </div>
       </div>
     </div>
   );
 }
 
+// ── Counter QR code: scan → patient app → account auto-linked to this pharmacy ──
+function PharmacyJoinQR({ code, pharmacyName }) {
+  const boxRef = React.useRef(null);
+  const cfg = window.SAATHIPILL_CONFIG || {};
+  const joinUrl = (cfg.patientAppUrl || 'http://localhost:5173')
+    + '/?join=' + encodeURIComponent(code)
+    + '&pharmacy=' + encodeURIComponent(pharmacyName || '');
+  const qrAvailable = typeof QRCode !== 'undefined';
+
+  React.useEffect(() => {
+    if (!qrAvailable || !boxRef.current) return;
+    boxRef.current.innerHTML = '';
+    new QRCode(boxRef.current, { text: joinUrl, width: 168, height: 168, correctLevel: QRCode.CorrectLevel.M });
+  }, [joinUrl, qrAvailable]);
+
+  const download = () => {
+    const canvas = boxRef.current && boxRef.current.querySelector('canvas');
+    if (!canvas) return;
+    const a = document.createElement('a');
+    a.href = canvas.toDataURL('image/png');
+    a.download = 'saathipill-join-' + code + '.png';
+    a.click();
+  };
+
+  return (
+    <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${C.borderSoft}` }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 4 }}>📱 Counter QR — patients scan to join</div>
+      <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.6, marginBottom: 12 }}>
+        Print this at your counter. Scanning opens the SaathiPill app, sets up the patient's account
+        and links them to <strong style={{ color: C.text }}>{pharmacyName || 'your pharmacy'}</strong> automatically — no code typing.
+      </div>
+      {qrAvailable ? (
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ padding: 10, background: '#fff', border: `1px solid ${C.border}`, borderRadius: 8, display: 'inline-block' }}>
+            <div ref={boxRef} />
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <Button variant="coral" size="md" icon={<span>⇩</span>} onClick={download}>Download QR (PNG)</Button>
+            <Button variant="ghost" size="md" onClick={() => { navigator.clipboard && navigator.clipboard.writeText(joinUrl); }}>⧉ Copy join link</Button>
+            <div style={{ fontSize: 11, color: C.textMuted, maxWidth: 240, lineHeight: 1.5, wordBreak: 'break-all' }}>{joinUrl}</div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ fontSize: 12, color: C.textMuted }}>QR generator couldn't load (offline?) — share this link instead: <span style={{ wordBreak: 'break-all', color: C.text }}>{joinUrl}</span></div>
+      )}
+    </div>
+  );
+}
+
 // ── PHARMACY PARTNER SCREEN ──
 function PharmacyPartnerScreen() {
+  // Live mode: the code shown is the real one, editing it goes through the
+  // backend (which also migrates existing patient links), and demo-only
+  // extras (branch codes, made-up link stats) are hidden.
+  const live = window.PortalAPI && PortalAPI.enabled;
   const [primaryCode, setPrimaryCode] = useState(
     () => (localStorage.getItem('sp_pharmacy_code') || 'SHRM-74219')
   );
   const [editingPrimary, setEditingPrimary] = useState(false);
   const [draftCode, setDraftCode] = useState('');
-  const [branches, setBranches] = useState([
+  const [saveErr, setSaveErr] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [branches, setBranches] = useState(live ? [] : [
     { id: 1, name: 'Borivali Branch', code: 'BORV-90012', patients: 34, active: true },
     { id: 2, name: 'Goregaon Branch', code: 'GORE-45678', patients: 18, active: true },
   ]);
@@ -1473,12 +1743,23 @@ function PharmacyPartnerScreen() {
   };
 
   const savePrimary = () => {
-    if (!isDraftValid) return;
-    setPrimaryCode(draftCode);
-    localStorage.setItem('sp_pharmacy_code', draftCode);
-    setEditingPrimary(false);
-    setSuccessMsg('Primary code updated');
-    setTimeout(() => setSuccessMsg(null), 2400);
+    if (!isDraftValid || saving) return;
+    const apply = () => {
+      setPrimaryCode(draftCode);
+      localStorage.setItem('sp_pharmacy_code', draftCode);
+      if (window.PHARMACY) window.PHARMACY.code = draftCode;
+      setEditingPrimary(false);
+      setSuccessMsg('Primary code updated — existing patient links moved over');
+      setTimeout(() => setSuccessMsg(null), 2400);
+    };
+    if (live) {
+      setSaving(true); setSaveErr(null);
+      PortalAPI.updatePharmacy({ code: draftCode })
+        .then(() => { setSaving(false); apply(); })
+        .catch((e) => { setSaving(false); setSaveErr(e.message || 'Could not update the code'); });
+    } else {
+      apply();
+    }
   };
 
   const addBranch = () => {
@@ -1497,12 +1778,12 @@ function PharmacyPartnerScreen() {
       <PageHeader
         title="Pharmacy partner codes"
         subtitle="Manage the codes patients use to link to your pharmacy in the SaathiPill app"
-        right={
+        right={!live && (
           <Button variant="coral" size="md" icon={<span style={{ fontSize: 16 }}>+</span>}
             onClick={() => { setAddingBranch(true); }}>
             Add branch code
           </Button>
-        }
+        )}
       />
 
       <div style={{ padding: '0 24px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -1511,22 +1792,29 @@ function PharmacyPartnerScreen() {
         <Card style={{ borderTop: `3px solid ${C.coral}` }}>
           <SectionHeader
             title="Primary code"
-            subtitle="Main branch — Andheri West"
+            subtitle={live
+              ? ((window.PHARMACY && (window.PHARMACY.name + (window.PHARMACY.location ? ' — ' + window.PHARMACY.location : ''))) || 'Your pharmacy')
+              : 'Main branch — Andheri West'}
             right={<Chip bg={C.coralSoft} color={C.coral} size={10}>PRIMARY</Chip>}
           />
           <div style={{ padding: '24px' }}>
             {editingPrimary ? (
               <div style={{ maxWidth: 520 }}>
                 <div style={{ fontSize: 12, color: C.textMid, marginBottom: 14, lineHeight: 1.6 }}>
-                  Existing linked patients stay connected after a code change. Only new patients will use the updated code.
+                  Existing linked patients stay connected — their link moves to the new code automatically.
                 </div>
                 <PharmacyCodeInput value={draftCode} onChange={setDraftCode} />
                 <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
-                  <Button variant="coral" size="md" disabled={!isDraftValid} onClick={savePrimary}>
-                    Save new code
+                  <Button variant="coral" size="md" disabled={!isDraftValid || saving} onClick={savePrimary}>
+                    {saving ? 'Saving…' : 'Save new code'}
                   </Button>
-                  <Button variant="ghost" size="md" onClick={() => setEditingPrimary(false)}>Cancel</Button>
+                  <Button variant="ghost" size="md" onClick={() => { setEditingPrimary(false); setSaveErr(null); }}>Cancel</Button>
                 </div>
+                {saveErr && (
+                  <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: C.red || '#C0392B' }}>
+                    {saveErr}
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap' }}>
@@ -1550,16 +1838,26 @@ function PharmacyPartnerScreen() {
                       fontFamily: fonts.body, fontSize: 11, fontWeight: 700,
                       cursor: 'pointer', transition: 'all 0.15s',
                     }}>{copied === 'primary' ? '✓ Copied!' : '⧉ Copy code'}</button>
-                    <Button variant="ghost" size="sm">⇩ QR card</Button>
+                    {!live && <Button variant="ghost" size="sm">⇩ QR card</Button>}
                   </div>
                 </div>
 
                 <div style={{ display: 'flex', gap: 0, borderLeft: `1px solid ${C.border}`, paddingLeft: 32 }}>
-                  <CodeStat label="Patients linked" value={213} color={C.navy} />
-                  <div style={{ width: 1, background: C.border, margin: '0 24px' }} />
-                  <CodeStat label="Linked this month" value={4} color={C.sage} />
-                  <div style={{ width: 1, background: C.border, margin: '0 24px' }} />
-                  <CodeStat label="Pending links" value={2} color={C.amber} />
+                  {live ? (
+                    <>
+                      <CodeStat label="Patients linked" value={(window.PORTAL_DASHBOARD && window.PORTAL_DASHBOARD.patientCount) || 0} color={C.navy} />
+                      <div style={{ width: 1, background: C.border, margin: '0 24px' }} />
+                      <CodeStat label="New this week" value={(window.PORTAL_DASHBOARD && window.PORTAL_DASHBOARD.newThisWeek) || 0} color={C.sage} />
+                    </>
+                  ) : (
+                    <>
+                      <CodeStat label="Patients linked" value={213} color={C.navy} />
+                      <div style={{ width: 1, background: C.border, margin: '0 24px' }} />
+                      <CodeStat label="Linked this month" value={4} color={C.sage} />
+                      <div style={{ width: 1, background: C.border, margin: '0 24px' }} />
+                      <CodeStat label="Pending links" value={2} color={C.amber} />
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -1592,8 +1890,8 @@ function PharmacyPartnerScreen() {
           </div>
         </Card>
 
-        {/* Branch codes */}
-        <Card>
+        {/* Branch codes — demo-only until multi-branch exists in the backend */}
+        {!live && <Card>
           <SectionHeader
             title="Branch codes"
             count={branches.length}
@@ -1657,7 +1955,7 @@ function PharmacyPartnerScreen() {
               </button>
             </div>
           )}
-        </Card>
+        </Card>}
 
         {/* Code format rules */}
         <Card>
@@ -1666,8 +1964,8 @@ function PharmacyPartnerScreen() {
             {[
               { q: 'Format', a: '9 alphanumeric characters with a dash at position 5 — e.g. SHRM-74219. Letters (A–Z) and digits (0–9) only.' },
               { q: 'Uniqueness', a: 'Codes must be globally unique across all pharmacies. The app will reject a duplicate when a patient tries to link.' },
-              { q: 'Changing your code', a: 'Already-linked patients remain connected. Only new patients will use the updated code going forward.' },
-              { q: 'One pharmacy per patient', a: 'A patient can only be linked to one pharmacy code at a time. Entering a new code replaces the previous link.' },
+              { q: 'Changing your code', a: 'Already-linked patients stay connected — their saved link is moved to the new code automatically.' },
+              { q: 'Multiple pharmacies', a: 'A patient can link more than one pharmacy and choose where each refill goes. Your code adds you to their list.' },
             ].map(item => (
               <div key={item.q} style={{ padding: '12px 14px', background: C.cream, borderRadius: 6, border: `1px solid ${C.borderSoft}` }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: C.navy, marginBottom: 4 }}>{item.q}</div>
