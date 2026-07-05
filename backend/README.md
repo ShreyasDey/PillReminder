@@ -30,11 +30,11 @@ This starts PostgreSQL, runs migrations, seeds demo data, and starts the API
 ## API surface
 
 - `POST /auth/otp/request`, `POST /auth/otp/verify`, `POST /auth/token/refresh`, `POST /auth/logout`
-- Patient (`/api`, role `patient`): `me`, `me/dashboard`, `me/adherence`, `medications`,
-  `doses`, `doses/sync`, `symptoms`, `appointments`, `family`, `pharmacy-pushes`,
-  `refills`, `notifications`
-- Pharmacy portal (`/portal`, role `pharmacist`): `pharmacy`, `patients`, `pushes`,
-  `inventory`, `dispenses`, `refills`, `offers`, `analytics/revenue`
+- Patient (`/api`, role `patient`): `me`, `me/pharmacies`, `me/dashboard`, `me/adherence`,
+  `medications` (+ `PATCH /medications/:id`), `doses`, `doses/sync`, `symptoms`,
+  `appointments`, `family`, `caregiving/*`, `push/*`, `pharmacy-pushes`, `refills`, `notifications`
+- Pharmacy portal (`/portal`, role `pharmacist`): `me`, `pharmacy`, `pharmacies`, `patients`,
+  `pushes`, `inventory`, `dispenses`, `refills`, `offers`, `analytics`, `sms`, `push/*`
 
 ## Realtime channels (Socket.IO)
 

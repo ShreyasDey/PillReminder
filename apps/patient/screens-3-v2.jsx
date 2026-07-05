@@ -44,16 +44,19 @@ function RefillOrderBuilder({ userMeds }) {
   const [catalog, setCatalog] = React.useState(null); // { byName, offer, name }
   const [orderError, setOrderError] = React.useState(null); // shortfalls from a 409
 
-  // Which pharmacies has the patient linked? (powers the picker)
+  // Which pharmacies has the patient linked? (powers the picker + compare table)
+  // Re-fetched whenever the linked list changes so counts/prices never go stale.
   React.useEffect(() => {
     if (!apiOn) return;
-    SaathiPillAPI.linkedPharmacies().then(list => {
+    const load = () => SaathiPillAPI.linkedPharmacies().then(list => {
       setPharmacies(list || []);
-      if ((!selectedCode || !(list || []).some(p => p.code === selectedCode)) && list && list.length) {
-        const primary = list.find(p => p.primary) || list[0];
-        setSelectedCode(primary.code);
-      }
+      setSelectedCode(prev => (prev && (list || []).some(p => p.code === prev))
+        ? prev
+        : ((list && list.length) ? list[0].code : ''));
     }).catch(() => {});
+    load();
+    window.addEventListener('sp_pharmacies_changed', load);
+    return () => window.removeEventListener('sp_pharmacies_changed', load);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiOn]);
 
@@ -471,15 +474,19 @@ function RefillsScreen({ onNavigate, userMeds }) {
   const [activeOffer, setActiveOffer] = React.useState(null);
   const [offerDismissed, setOfferDismissed] = React.useState(false);
 
-  // The patient's linked pharmacies (backend truth) — the banner reflects the primary
-  // one, or prompts to link when there is none. Never defaults to a hardcoded pharmacy.
+  // The patient's linked pharmacies (backend truth) — re-fetched whenever links
+  // change so the count never goes stale. Never defaults to a hardcoded pharmacy.
   const refillsApiOn = window.SaathiPillAPI && SaathiPillAPI.enabled && SaathiPillAPI.hasSession();
   const [linkedPharms, setLinkedPharms] = React.useState([]);
   React.useEffect(() => {
     if (!refillsApiOn) return;
-    SaathiPillAPI.linkedPharmacies().then(list => setLinkedPharms(list || [])).catch(() => {});
+    const load = () => SaathiPillAPI.linkedPharmacies().then(list => setLinkedPharms(list || [])).catch(() => {});
+    load();
+    window.addEventListener('sp_pharmacies_changed', load);
+    return () => window.removeEventListener('sp_pharmacies_changed', load);
   }, [refillsApiOn]);
-  const linkedPrimary = (linkedPharms.find(p => p.primary) || linkedPharms[0]) || null;
+  // The offer banner belongs to whichever linked pharmacy is running the offer.
+  const offerPharmacy = linkedPharms.find(p => p.offer) || linkedPharms[0] || null;
 
   React.useEffect(() => {
     const readOffer = () => {
@@ -531,7 +538,7 @@ function RefillsScreen({ onNavigate, userMeds }) {
       <div style={{ flex: 1, overflow: 'auto', padding: '20px 20px 100px', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
         {/* Active pharmacy offer banner — only when actually linked to a pharmacy */}
-        {linkedPrimary && activeOffer && !offerDismissed && (
+        {offerPharmacy && activeOffer && !offerDismissed && (
           <div style={{
             borderRadius: 18, overflow: 'hidden',
             border: `2px solid ${C.sage}`,
@@ -550,7 +557,7 @@ function RefillsScreen({ onNavigate, userMeds }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 20 }}>🏷️</span>
                   <div>
-                    <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Limited offer · {linkedPrimary.name}</div>
+                    <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.55)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Limited offer · {offerPharmacy.name}</div>
                     <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 800, color: '#fff', marginTop: 1 }}>{activeOffer.label}</div>
                   </div>
                 </div>
@@ -732,17 +739,6 @@ function RefillsScreen({ onNavigate, userMeds }) {
           </div>
         )}
 
-        {/* Refill reminder settings */}
-        <Card style={{ background: C.amberLight, border: `1px solid ${C.amber}33` }}>
-          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-            <span style={{ fontSize: 28 }}>⚙️</span>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: C.text }}>Auto refill reminders</div>
-              <div style={{ fontFamily: fonts.body, fontSize: 13, color: C.textMuted }}>Alert when 7 days of stock remain</div>
-            </div>
-            <Pill color={C.amber}>On</Pill>
-          </div>
-        </Card>
       </div>
     </div>
   );
@@ -884,58 +880,43 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
     return list.filter(m => { const k = (m.name || '') + (m.dose || ''); if (seen.has(k)) return false; seen.add(k); return true; });
   })();
   const reportDate = new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
-  const [sharing, setSharing] = React.useState(false);
   const [selectedDay, setSelectedDay] = React.useState(null);
 
-  // Deterministic day status — matches the square colors below
-  const dayStatusFor = (d) => (d % 11 === 0 ? 'red' : d % 7 === 5 ? 'amber' : 'sage');
-
-  // Per-day medicine log (deterministic so it survives re-renders)
-  const dayDetailFor = (d) => {
-    const status = dayStatusFor(d);
-    // Status mapping: sage = all taken, amber = at least one late, red = at least one missed
-    const baseMeds = [
-      { name: 'Metformin 500mg', time: '8:00 AM', meal: 'After breakfast' },
-      { name: 'Amlodipine 5mg', time: '9:00 AM', meal: 'After breakfast' },
-      { name: 'Telmisartan 40mg', time: '1:00 PM', meal: 'After lunch' },
-      { name: 'Atorvastatin 10mg', time: '9:00 PM', meal: 'After dinner' },
-    ];
-    if (status === 'sage') {
-      return baseMeds.map((m, i) => ({
-        ...m,
-        status: 'taken',
-        actual: m.time,
-        delayMin: 0,
-      }));
-    }
-    if (status === 'amber') {
-      // one dose taken late (rotate which one by day)
-      const lateIdx = d % baseMeds.length;
-      return baseMeds.map((m, i) => ({
-        ...m,
-        status: i === lateIdx ? 'late' : 'taken',
-        actual: i === lateIdx ? '+1h 12m' : m.time,
-        delayMin: i === lateIdx ? 72 : 0,
-      }));
-    }
-    // red — one missed, others taken (some late)
-    const missedIdx = d % baseMeds.length;
-    return baseMeds.map((m, i) => ({
-      ...m,
-      status: i === missedIdx ? 'missed' : (i === (missedIdx + 1) % baseMeds.length ? 'late' : 'taken'),
-      actual: i === missedIdx ? '—' : (i === (missedIdx + 1) % baseMeds.length ? '+48m' : m.time),
-      delayMin: i === missedIdx ? null : (i === (missedIdx + 1) % baseMeds.length ? 48 : 0),
-    }));
+  // Real adherence calendar for the current month, from the dose-history series.
+  // Each series entry has { date, taken, missed, counted }.
+  const _now = new Date();
+  const _year = _now.getFullYear();
+  const _month = _now.getMonth();
+  const _todayNum = _now.getDate();
+  const _daysInMonth = new Date(_year, _month + 1, 0).getDate();
+  const monthLabel = _now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  const _seriesByDay = {};
+  (adherenceDaily || []).forEach(e => {
+    if (!e || !e.date) return;
+    const dt = new Date(e.date + 'T00:00:00');
+    if (dt.getFullYear() === _year && dt.getMonth() === _month) _seriesByDay[dt.getDate()] = e;
+  });
+  const dayStatFor = (d) => {
+    const e = _seriesByDay[d];
+    return { taken: e ? e.taken : 0, missed: e ? e.missed : 0, counted: e ? e.counted : 0 };
+  };
+  // sage = all taken · red = missed a dose · partial = today · none = no doses · future
+  const dayStatusFor = (d) => {
+    if (d > _todayNum) return 'future';
+    const st = dayStatFor(d);
+    if (st.missed > 0) return 'red';
+    if (d === _todayNum) return 'partial';
+    return st.counted > 0 ? 'sage' : 'none';
   };
 
   const statusMeta = {
-    sage:  { label: 'All doses taken on time',     color: C.sage,  icon: '✓' },
-    amber: { label: 'One or more doses late',      color: C.amber, icon: '⚠️' },
-    red:   { label: 'Dose missed',                  color: C.red,   icon: '✗' },
+    sage:    { label: 'All medicines taken',   color: C.sage,      icon: '✓' },
+    red:     { label: 'Missed a dose',          color: C.red,       icon: '✗' },
+    partial: { label: 'In progress today',      color: C.coral,     icon: '•' },
+    none:    { label: 'No doses logged',        color: C.warmGray,  icon: '–' },
+    future:  { label: '',                       color: C.warmGray,  icon: '' },
   };
-
-  const doseStatusColor = (s) => s === 'taken' ? C.sage : s === 'late' ? C.amber : s === 'missed' ? C.red : C.warmGray;
-  const doseStatusLabel = (s) => s === 'taken' ? 'Taken' : s === 'late' ? 'Late' : s === 'missed' ? 'Missed' : s;
+  const calColor = { sage: C.sage, red: C.red, partial: C.coral, none: C.warmGrayLight, future: C.warmGrayLight };
 
   return (
     <div style={{ flex: 1, minHeight: 0, background: C.cream, display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -1001,34 +982,35 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
             ))}
           </div>
 
-          {/* Mini calendar */}
+          {/* Mini calendar — real adherence for the current month */}
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>ADHERENCE LOG — APRIL 2026</div>
+            <div style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>ADHERENCE LOG — {monthLabel.toUpperCase()}</div>
             <div style={{ fontFamily: fonts.body, fontSize: 11, color: C.textMuted, marginBottom: 8 }}>Tap any day to see what was taken.</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {Array(30).fill(null).map((_, i) => {
+              {Array(_daysInMonth).fill(null).map((_, i) => {
                 const dayNum = i + 1;
                 const status = dayStatusFor(dayNum);
+                const isFuture = status === 'future';
                 const isSelected = selectedDay === dayNum;
                 return (
                   <button
                     key={i}
-                    onClick={() => setSelectedDay(isSelected ? null : dayNum)}
-                    title={`April ${dayNum} — ${statusMeta[status].label}`}
+                    onClick={() => !isFuture && setSelectedDay(isSelected ? null : dayNum)}
+                    title={isFuture ? `${monthLabel.split(' ')[0]} ${dayNum}` : `${monthLabel.split(' ')[0]} ${dayNum} — ${statusMeta[status].label}`}
                     style={{
                       width: 22, height: 22, borderRadius: 5,
-                      background: C[status],
-                      opacity: 0.85,
+                      background: calColor[status],
+                      opacity: isFuture ? 0.35 : (status === 'none' ? 0.6 : 0.85),
                       border: isSelected ? `2px solid ${C.text}` : '2px solid transparent',
-                      padding: 0, cursor: 'pointer',
+                      padding: 0, cursor: isFuture ? 'default' : 'pointer',
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       fontFamily: fonts.body, fontSize: 10, fontWeight: 700,
-                      color: 'rgba(255,255,255,0.92)',
+                      color: (status === 'none' || isFuture) ? C.textMuted : 'rgba(255,255,255,0.92)',
                       transition: 'transform 120ms ease, opacity 120ms ease',
                       transform: isSelected ? 'scale(1.08)' : 'scale(1)',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.opacity = isSelected ? '1' : '0.85'; }}
+                    onMouseEnter={(e) => { if (!isFuture) e.currentTarget.style.opacity = '1'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.opacity = isFuture ? '0.35' : (status === 'none' ? '0.6' : (isSelected ? '1' : '0.85')); }}
                   >
                     {dayNum}
                   </button>
@@ -1036,9 +1018,9 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
               })}
             </div>
             <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
-              {[['sage', 'Taken'], ['amber', 'Late'], ['red', 'Missed']].map(([c, l]) => (
-                <div key={c} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <div style={{ width: 10, height: 10, borderRadius: 2, background: C[c] }} />
+              {[[C.sage, 'All taken'], [C.red, 'Missed']].map(([c, l]) => (
+                <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: 2, background: c }} />
                   <span style={{ fontFamily: fonts.body, fontSize: 10, color: C.textMuted }}>{l}</span>
                 </div>
               ))}
@@ -1118,24 +1100,7 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
           </div>
         </div>
 
-        {/* Share buttons */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <Btn icon="📤" onClick={() => setSharing(true)}>Share PDF</Btn>
-          {sharing && (
-            <div style={{ display: 'flex', gap: 10 }}>
-              {[['💬', 'SMS', C.sage], ['📧', 'Email', '#5B8EE0'], ['🖨️', 'Print', C.warmGray]].map(([icon, label, color]) => (
-                <button key={label} onClick={() => setSharing(false)} style={{
-                  flex: 1, padding: '14px 8px', borderRadius: 14, border: `2px solid ${color}33`,
-                  background: color + '11', cursor: 'pointer',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
-                }}>
-                  <span style={{ fontSize: 22 }}>{icon}</span>
-                  <span style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color }}>{label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
           {/* Log symptom CTA — improvement #14 */}
           <button onClick={() => onLogSymptoms && onLogSymptoms()} style={{
             display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px',
@@ -1156,10 +1121,9 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
       {selectedDay !== null && (() => {
         const status = dayStatusFor(selectedDay);
         const meta = statusMeta[status];
-        const meds = dayDetailFor(selectedDay);
-        const takenCount = meds.filter(m => m.status === 'taken').length;
-        const lateCount = meds.filter(m => m.status === 'late').length;
-        const missedCount = meds.filter(m => m.status === 'missed').length;
+        const st = dayStatFor(selectedDay);
+        const takenCount = st.taken;
+        const missedCount = st.missed;
         return (
           <div
             onClick={() => setSelectedDay(null)}
@@ -1190,9 +1154,9 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 14 }}>
                 <div>
-                  <div style={{ fontFamily: fonts.body, fontSize: 11, color: C.textMuted, fontWeight: 600, letterSpacing: '0.06em' }}>APR {selectedDay}, 2026</div>
+                  <div style={{ fontFamily: fonts.body, fontSize: 11, color: C.textMuted, fontWeight: 600, letterSpacing: '0.06em' }}>{monthLabel.split(' ')[0].slice(0, 3).toUpperCase()} {selectedDay}, {_year}</div>
                   <div style={{ fontFamily: fonts.heading, fontSize: 22, fontWeight: 800, color: C.text, marginTop: 2 }}>
-                    {new Date(2026, 3, selectedDay).toLocaleDateString('en-IN', { weekday: 'long' })}
+                    {new Date(_year, _month, selectedDay).toLocaleDateString('en-IN', { weekday: 'long' })}
                   </div>
                 </div>
                 <button
@@ -1225,12 +1189,12 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
                 </div>
               </div>
 
-              {/* Mini summary */}
+              {/* Real dose counts for the day */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
                 {[
                   { v: takenCount, l: 'Taken', c: C.sage },
-                  { v: lateCount, l: 'Late', c: C.amber },
                   { v: missedCount, l: 'Missed', c: C.red },
+                  { v: st.counted, l: 'Scheduled', c: C.textMuted },
                 ].map((s, i) => (
                   <div key={i} style={{ textAlign: 'center', padding: '10px 4px', borderRadius: 10, background: C.warmGrayLight }}>
                     <div style={{ fontFamily: fonts.heading, fontSize: 20, fontWeight: 800, color: s.c }}>{s.v}</div>
@@ -1239,52 +1203,41 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
                 ))}
               </div>
 
-              {/* Timeline list */}
-              <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.08em', marginBottom: 8 }}>DOSES SCHEDULED</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {meds.map((m, i) => {
-                  const sc = doseStatusColor(m.status);
-                  return (
-                    <div key={i} style={{
-                      display: 'flex', alignItems: 'center', gap: 12,
-                      padding: '12px 14px', borderRadius: 14,
-                      background: C.cream, border: `1px solid ${C.border}`,
-                    }}>
-                      <div style={{
-                        width: 42, height: 42, borderRadius: 12,
-                        background: sc + '22',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0,
-                        fontFamily: fonts.body, fontSize: 16, fontWeight: 800, color: sc,
-                      }}>
-                        {m.status === 'taken' ? '✓' : m.status === 'late' ? '⏱' : '✗'}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: C.text }}>{m.name}</div>
-                        <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted }}>
-                          Scheduled {m.time} · {m.meal}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                        <Pill color={sc} style={{ fontSize: 10 }}>{doseStatusLabel(m.status)}</Pill>
-                        {m.status !== 'missed' && (
-                          <div style={{ fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace', fontSize: 11, color: m.delayMin > 0 ? C.amber : C.textMuted, marginTop: 4, fontWeight: 600 }}>
-                            {m.actual}
+              {/* Any symptoms the patient logged that day */}
+              {(() => {
+                const dayKey = `${_year}-${String(_month + 1).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`;
+                const daySyms = (userSymptoms || []).filter(s => {
+                  const dt = new Date(s.timestamp);
+                  return dt.getFullYear() === _year && dt.getMonth() === _month && dt.getDate() === selectedDay;
+                });
+                if (daySyms.length === 0) return null;
+                const symMap = { headache: 'Headache', nausea: 'Nausea', dizzy: 'Dizziness', fatigue: 'Fatigue', fever: 'Fever', cough: 'Cough', pain: 'Pain', stomach: 'Stomach upset', rash: 'Rash', sleep: 'Poor sleep', appetite: 'Appetite change', mood: 'Low mood' };
+                return (
+                  <>
+                    <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.08em', marginBottom: 8 }}>SYMPTOMS LOGGED</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {daySyms.map((s, i) => (
+                        <div key={i} style={{ padding: '10px 12px', borderRadius: 12, background: C.cream, border: `1px solid ${C.border}` }}>
+                          <div style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 600, color: C.text }}>
+                            {(s.symptoms || []).map(id => symMap[id] || id).join(', ') || (s.mood ? `Mood: ${s.mood}` : 'Check-in')}
                           </div>
-                        )}
-                      </div>
+                          {s.note && <div style={{ fontFamily: fonts.body, fontSize: 11, color: C.textMuted, fontStyle: 'italic', marginTop: 3 }}>"{s.note}"</div>}
+                        </div>
+                      ))}
                     </div>
-                  );
-                })}
-              </div>
+                  </>
+                );
+              })()}
 
-              {/* Footnote */}
+              {/* Footnote — honest summary of the day */}
               <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 10, background: C.warmGrayLight, fontFamily: fonts.body, fontSize: 11, color: C.textMuted, lineHeight: 1.5 }}>
-                {missedCount > 0
-                  ? 'A missed dose was followed up with an SMS nudge to caregivers. No reported side effects on this day.'
-                  : lateCount > 0
-                  ? 'Late dose was logged via voice reminder snooze. No reported side effects on this day.'
-                  : 'On schedule throughout the day. No reported side effects.'}
+                {status === 'none'
+                  ? 'No doses were scheduled or logged on this day.'
+                  : status === 'partial'
+                  ? 'Today is still in progress — some doses may not be marked yet.'
+                  : missedCount > 0
+                  ? `${missedCount} of ${st.counted} ${st.counted === 1 ? 'dose was' : 'doses were'} missed on this day.`
+                  : 'All scheduled doses were taken on this day.'}
               </div>
             </div>
 
@@ -1301,42 +1254,11 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
 
 // ── SCREEN 16: PROFILE / SETTINGS ──
 function ProfileScreen({ onNavigate, userName, onLogout }) {
-  const [notifications, setNotifications] = React.useState(true);
-  const [smsAlerts, setSmsAlerts] = React.useState(true);
-  const [voice, setVoice] = React.useState(true);
-  const [offline, setOffline] = React.useState(true);
-
-  // Real Web Push enablement for medication reminders.
-  const pushSupported = typeof window !== 'undefined' && window.SaathiPillPush && window.SaathiPillPush.supported;
-  const [pushOn, setPushOn] = React.useState(false);
-  const [pushBusy, setPushBusy] = React.useState(false);
-  const [pushMsg, setPushMsg] = React.useState('');
-  React.useEffect(() => {
-    if (pushSupported) window.SaathiPillPush.isEnabled().then(setPushOn).catch(() => {});
-  }, []);
-  const toggleReminders = async () => {
-    if (!pushSupported || pushBusy) return;
-    setPushBusy(true); setPushMsg('');
-    try {
-      if (pushOn) {
-        await window.SaathiPillPush.disable();
-        setPushOn(false); setPushMsg('Reminders turned off.');
-      } else {
-        await window.SaathiPillPush.enable();
-        setPushOn(true); setPushMsg('Reminders on — sending you a test notification…');
-        if (window.SaathiPillAPI && window.SaathiPillAPI.pushTest) window.SaathiPillAPI.pushTest().catch(() => {});
-      }
-    } catch (e) { setPushMsg(e.message || 'Could not enable reminders.'); }
-    setPushBusy(false);
-  };
-
   const settingsGroups = [
     {
       title: 'Reminders',
       items: [
         { icon: '🔔', label: 'Reminder settings', desc: 'Tone, snooze, escalation', arrow: true },
-        { icon: '💬', label: 'SMS alerts', desc: 'Alert caregivers on missed doses', toggle: true, value: smsAlerts, set: setSmsAlerts },
-        { icon: '🔊', label: 'Voice reminders', desc: 'Audio in your language', toggle: true, value: voice, set: setVoice },
         { icon: '🌙', label: 'Works on silent', desc: 'Always on', chip: 'Active' },
       ]
     },
@@ -1345,13 +1267,7 @@ function ProfileScreen({ onNavigate, userName, onLogout }) {
       items: [
         // DRUG INTERACTIONS — hidden, re-enable when ready:
         // { icon: '⚠️', label: 'Drug interactions', desc: '2 of your meds need attention', arrow: true, action: () => onNavigate('interactions'), badge: 2 },
-        { icon: '📋', label: 'Doctor report', desc: 'Share PDF at appointment', arrow: true, action: () => onNavigate('report') },
-      ]
-    },
-    {
-      title: 'Family & Doctors',
-      items: [
-        { icon: '👨‍👩‍👧', label: 'Caregiver contacts', desc: '3 family members', arrow: true },
+        { icon: '📋', label: 'Doctor report', desc: 'Adherence summary for your appointment', arrow: true, action: () => onNavigate('report') },
       ]
     },
     {
@@ -1359,9 +1275,6 @@ function ProfileScreen({ onNavigate, userName, onLogout }) {
       items: [
         { icon: '🌐', label: 'Language', desc: 'English', arrow: true },
         { icon: '🏪', label: 'Pharmacy partner', desc: 'Link a nearby pharmacy', arrow: true, action: () => onNavigate('pharmacy') },
-        { icon: '📴', label: 'Offline mode', desc: 'Works without internet', toggle: true, value: offline, set: setOffline },
-        { icon: '📴', label: 'Offline demo', desc: 'See offline state screen', arrow: true, action: () => onNavigate('offline') },
-        { icon: '📤', label: 'Data export', desc: 'Download your health data', arrow: true },
       ]
     },
   ];
@@ -1385,26 +1298,6 @@ function ProfileScreen({ onNavigate, userName, onLogout }) {
       </div>
 
       <div style={{ padding: '20px 20px 100px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {/* Medicine reminders (real Web Push) */}
-        <div>
-          <div style={{ fontFamily: fonts.body, fontSize: 12, fontWeight: 700, color: C.textMuted, letterSpacing: '0.06em', marginBottom: 10, paddingLeft: 4 }}>MEDICINE REMINDERS</div>
-          <Card style={{ padding: '16px 18px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: C.coralLight, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>🔔</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: fonts.body, fontSize: 15, fontWeight: 700, color: C.text }}>Phone reminders</div>
-                <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted }}>{pushSupported ? (pushOn ? 'On — reminders keep coming until you mark a dose taken' : 'Get reminders even when the app is closed') : 'Not supported on this browser'}</div>
-              </div>
-              {pushSupported && (
-                <button onClick={toggleReminders} disabled={pushBusy} style={{ width: 52, height: 28, borderRadius: 14, border: 'none', cursor: pushBusy ? 'default' : 'pointer', background: pushOn ? C.coral : C.warmGrayLight, display: 'flex', alignItems: 'center', padding: '0 4px', justifyContent: pushOn ? 'flex-end' : 'flex-start', opacity: pushBusy ? 0.6 : 1, transition: 'background 0.2s' }}>
-                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: C.white }} />
-                </button>
-              )}
-            </div>
-            {pushMsg && <div style={{ marginTop: 10, fontFamily: fonts.body, fontSize: 12, color: C.textMuted, lineHeight: 1.4 }}>{pushMsg}</div>}
-          </Card>
-        </div>
-
         {settingsGroups.map((group, gi) => (
           <div key={gi}>
             <div style={{ fontFamily: fonts.body, fontSize: 12, fontWeight: 700, color: C.textMuted, letterSpacing: '0.06em', marginBottom: 10, paddingLeft: 4 }}>
@@ -1543,10 +1436,30 @@ function PharmacyBannerScreen({ onClose }) {
   const [locResults, setLocResults]   = React.useState([]);   // geocode suggestions
   const [locSearching, setLocSearching] = React.useState(false);
   const apiOn = window.SaathiPillAPI && SaathiPillAPI.enabled && SaathiPillAPI.hasSession();
+
+  // Backend is the source of truth for what's linked — replace the localStorage
+  // cache with it on open so this screen can't show a stale/partial list.
+  React.useEffect(() => {
+    if (!apiOn) return;
+    SaathiPillAPI.linkedPharmacies().then(list => {
+      const codes = (list || []).map(p => p.code);
+      setLinkedPharmacies(codes);
+      localStorage.setItem('sp_linked_pharmacies', JSON.stringify(codes));
+      setPharmacyDb(prev => {
+        const next = { ...prev };
+        (list || []).forEach(p => { next[p.code] = { ...(next[p.code] || {}), name: p.name, area: p.location || '', hours: p.hours || '', color: C.coral }; });
+        return next;
+      });
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiOn]);
+
   // "Andheri West · 8 AM – 10 PM · 1.2 km away" (skips any missing part)
   const phMeta = (ph) => ph ? [ph.area, ph.hours, ph.distanceKm != null ? `${ph.distanceKm} km away` : null].filter(Boolean).join(' · ') : '';
 
   // ── Multi-pharmacy list state ──
+  // localStorage is only the instant first paint; the backend list replaces it on
+  // mount (below) so this screen never drifts from what the server has linked.
   const [linkedPharmacies, setLinkedPharmacies] = React.useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('sp_linked_pharmacies') || 'null');
@@ -1666,9 +1579,9 @@ function PharmacyBannerScreen({ onClose }) {
 
   const persistList = (list) => {
     localStorage.setItem('sp_linked_pharmacies', JSON.stringify(list));
-    // Push the primary (first) pharmacy code to the backend so the pharmacy portal
-    // sees this patient as linked.
-    if (apiOn && list.length > 0) SaathiPillAPI.updateProfile({ linkedPharmacyCode: list[0] }).catch(() => {});
+    // Backend sync happens via addPharmacy/removePharmacy at the call sites; this
+    // event lets the Refills tab + order card refresh their linked-pharmacy data.
+    try { window.dispatchEvent(new CustomEvent('sp_pharmacies_changed')); } catch (e) {}
     if (list.length > 0) {
       localStorage.setItem('sp_patient_pharmacy_code', list[0]);
       localStorage.setItem('sp_pharmacy_linked', 'true');
@@ -1688,7 +1601,11 @@ function PharmacyBannerScreen({ onClose }) {
     const updated = [...linkedPharmacies, resolvedCode];
     setLinkedPharmacies(updated);
     persistList(updated);
-    if (apiOn) SaathiPillAPI.addPharmacy(resolvedCode).catch(() => {});
+    // Re-announce once the backend actually has it, so listeners refetching from
+    // the API see the new link too (not just the optimistic local list).
+    if (apiOn) SaathiPillAPI.addPharmacy(resolvedCode)
+      .then(() => { try { window.dispatchEvent(new CustomEvent('sp_pharmacies_changed')); } catch (e) {} })
+      .catch(() => {});
     setCodeInput('');
     setBrowseSelected(null);
     setBrowseSearch('');
@@ -1710,14 +1627,10 @@ function PharmacyBannerScreen({ onClose }) {
     const updated = linkedPharmacies.filter(c => c !== code);
     setLinkedPharmacies(updated);
     persistList(updated);
-    if (apiOn) SaathiPillAPI.removePharmacy(code).catch(() => {});
+    if (apiOn) SaathiPillAPI.removePharmacy(code)
+      .then(() => { try { window.dispatchEvent(new CustomEvent('sp_pharmacies_changed')); } catch (e) {} })
+      .catch(() => {});
     setRemoveConfirm(null);
-  };
-
-  const setPrimary = (code) => {
-    const updated = [code, ...linkedPharmacies.filter(c => c !== code)];
-    setLinkedPharmacies(updated);
-    persistList(updated);
   };
 
   return (
@@ -1730,7 +1643,7 @@ function PharmacyBannerScreen({ onClose }) {
           <div style={{ fontFamily: fonts.heading, fontSize: 18, fontWeight: 700, color: C.text }}>Pharmacy Partners</div>
           {linkedPharmacies.length > 0 && (
             <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted }}>
-              {linkedPharmacies.length} linked · {linkedPharmacies.length === 1 ? '1 primary' : `${PHARMACY_DB[linkedPharmacies[0]]?.name || 'Unknown'} is primary`}
+              {linkedPharmacies.length} linked · compare prices when you order
             </div>
           )}
         </div>
@@ -1738,13 +1651,13 @@ function PharmacyBannerScreen({ onClose }) {
 
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px 32px', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-        {/* Active offer banner (applies to primary pharmacy) */}
+        {/* Active offer banner */}
         {activeOffer && linkedPharmacies.length > 0 && (
           <div style={{ borderRadius: 20, overflow: 'hidden', background: 'linear-gradient(135deg, #1A4B2C 0%, #1F6B3A 100%)', position: 'relative', flexShrink: 0 }}>
             <div style={{ position: 'absolute', right: -12, top: -20, fontSize: 80, fontWeight: 900, color: 'rgba(255,255,255,0.05)', letterSpacing: '-0.05em', lineHeight: 1, userSelect: 'none' }}>%</div>
             <div style={{ padding: '18px 20px' }}>
               <div style={{ fontFamily: fonts.body, fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
-                Special offer · {PHARMACY_DB[linkedPharmacies[0]]?.name || 'Primary pharmacy'}
+                Special offer · {PHARMACY_DB[linkedPharmacies[0]]?.name || 'Your pharmacy'}
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 6 }}>
                 <span style={{ fontFamily: fonts.body, fontSize: 52, fontWeight: 900, color: '#fff', letterSpacing: '-0.04em', lineHeight: 1 }}>{activeOffer.discount}%</span>
@@ -1774,34 +1687,23 @@ function PharmacyBannerScreen({ onClose }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.07em' }}>YOUR PHARMACIES</div>
 
-            {linkedPharmacies.map((code, idx) => {
+            {linkedPharmacies.map((code) => {
               const ph = PHARMACY_DB[code];
-              const isPrimary = idx === 0;
               const isRemoving = removeConfirm === code;
 
               return (
-                <Card key={code} style={{ padding: 0, overflow: 'hidden', border: `1.5px solid ${isPrimary ? C.sage : C.border}`, transition: 'border-color 0.2s' }}>
+                <Card key={code} style={{ padding: 0, overflow: 'hidden', border: `1.5px solid ${C.border}`, transition: 'border-color 0.2s' }}>
                   <div style={{ padding: '14px 16px' }}>
 
                     {/* Pharmacy row */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: isRemoving ? 14 : 0 }}>
                       <div style={{ width: 46, height: 46, borderRadius: 14, background: ph ? ph.color : '#1A4B8C', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>🏥</div>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2, flexWrap: 'wrap' }}>
-                          <div style={{ fontFamily: fonts.body, fontSize: 15, fontWeight: 700, color: C.text }}>{ph ? ph.name : code}</div>
-                          {isPrimary && (
-                            <span style={{ fontSize: 10, padding: '2px 7px', borderRadius: 6, background: C.sageLight, color: C.sage, fontFamily: fonts.body, fontWeight: 700, letterSpacing: '0.04em' }}>Primary</span>
-                          )}
-                        </div>
+                        <div style={{ fontFamily: fonts.body, fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 2 }}>{ph ? ph.name : code}</div>
                         {ph && <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted, marginBottom: 2 }}>{phMeta(ph)}</div>}
-                        <div style={{ fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace', fontSize: 11, fontWeight: 700, color: isPrimary ? C.sage : C.textMuted, letterSpacing: '0.08em' }}>{code}</div>
+                        <div style={{ fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace', fontSize: 11, fontWeight: 700, color: C.textMuted, letterSpacing: '0.08em' }}>{code}</div>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end', flexShrink: 0 }}>
-                        {!isPrimary && (
-                          <button onClick={() => setPrimary(code)} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, border: `1px solid ${C.border}`, background: C.white, color: C.textMuted, cursor: 'pointer', fontFamily: fonts.body, fontWeight: 600, whiteSpace: 'nowrap' }}>
-                            Set primary
-                          </button>
-                        )}
                         <button onClick={() => setRemoveConfirm(isRemoving ? null : code)} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 8, border: `1px solid ${C.red}44`, background: '#FEF2F2', color: C.red, cursor: 'pointer', fontFamily: fonts.body, fontWeight: 600 }}>
                           Remove
                         </button>
@@ -1813,11 +1715,7 @@ function PharmacyBannerScreen({ onClose }) {
                       <div style={{ padding: '12px 14px', borderRadius: 13, background: '#FEF2F2', border: `1px solid ${C.red}22` }}>
                         <div style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 4 }}>Remove {ph ? ph.name : code}?</div>
                         <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted, lineHeight: 1.5, marginBottom: 12 }}>
-                          {isPrimary && linkedPharmacies.length > 1
-                            ? `Offers & refill routing will transfer to ${PHARMACY_DB[linkedPharmacies[1]]?.name || 'the next pharmacy'}.`
-                            : isPrimary
-                            ? 'Active offers and auto-refill routing will be cleared.'
-                            : 'This pharmacy will be unlinked from your account.'}
+                          This pharmacy will be unlinked from your account. You'll no longer see its prices or offers when ordering refills.
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
                           <button onClick={() => removePharmacy(code)} style={{ flex: 1, padding: '10px 0', borderRadius: 11, border: 'none', background: C.red, color: C.white, fontFamily: fonts.body, fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Yes, remove</button>
@@ -2069,14 +1967,14 @@ function PharmacyBannerScreen({ onClose }) {
         {linkedPharmacies.length === 0 && !addingNew && (
           <div style={{ padding: '16px', borderRadius: 14, background: C.warmGrayLight, fontFamily: fonts.body, fontSize: 13, color: C.textMuted, lineHeight: 1.7 }}>
             <strong style={{ color: C.text }}>How it works</strong><br />
-            Your pharmacist gives you a 9-character code (e.g. <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>SHRM-74219</span>). Link it here to receive exclusive offers, track refills, and place orders directly from the app. You can link multiple pharmacies and set one as primary.
+            Your pharmacist gives you a 9-character code (e.g. <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>SHRM-74219</span>). Link it here to receive exclusive offers, track refills, and place orders directly from the app. Link as many pharmacies as you like — when you order a refill you'll see all their prices side by side and pick where to collect.
           </div>
         )}
 
-        {/* Primary pharmacy note (only when >1 linked) */}
+        {/* Multi-pharmacy note (only when >1 linked) */}
         {linkedPharmacies.length > 1 && !addingNew && (
           <div style={{ padding: '12px 14px', borderRadius: 12, background: C.warmGrayLight, fontFamily: fonts.body, fontSize: 12, color: C.textMuted, lineHeight: 1.5 }}>
-            <strong style={{ color: C.text }}>Primary pharmacy</strong> receives your refill orders and discount offers. Tap "Set primary" on any other pharmacy to switch.
+            <strong style={{ color: C.text }}>Ordering refills?</strong> You'll see all {linkedPharmacies.length} pharmacies' prices side by side and choose where to collect, order by order.
           </div>
         )}
       </div>

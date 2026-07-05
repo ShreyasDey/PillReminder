@@ -15,6 +15,7 @@
 <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="env.js"></script>
 <script src="config.js"></script>
 <script src="api-client.js"></script>
 <script src="push-client.js"></script>
@@ -136,6 +137,13 @@ function App() {
   const [tab, setTab] = useState('home');
   const [overlayScreen, setOverlayScreen] = useState(null);
   const [overlayData, setOverlayData] = useState(null);
+  // Which dose's reminder card is currently on screen (null when none) — used
+  // to dismiss it when the same dose is acted on elsewhere (desktop
+  // notification, another tab/device, a caregiver).
+  const openReminderRef = useRef(null);
+  useEffect(() => {
+    openReminderRef.current = (overlayScreen === 'reminder' && overlayData && overlayData.doseLogId) ? overlayData.doseLogId : null;
+  }, [overlayScreen, overlayData]);
 
   // Caregiver invite deep-link: a family member opens a link like
   //   ?invite=1&name=Priya&rel=Daughter&by=Shreyas&perm=view
@@ -149,9 +157,38 @@ function App() {
         relation: p.get('rel') || '',
         by: p.get('by') || '',
         perm: p.get('perm') || 'view',
+        // The invite row's id — lets the invited person see & accept THIS invite
+        // even if the phone number on it doesn't match their account.
+        link: p.get('link') || null,
+        // The invited number already has an account → open LOG IN, prefilled.
+        existing: p.get('existing') === '1',
+        phone: (p.get('phone') || '').replace(/\D/g, '').slice(-10),
       };
     } catch (e) { return null; }
   });
+
+  // Pharmacy QR deep-link: scanning the counter QR opens ?join=<code>&pharmacy=<name>.
+  // After sign-in (new or existing account) the pharmacy is linked automatically.
+  const [joinData, setJoinData] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const code = p.get('join');
+      if (!code) return null;
+      return { code: code.toUpperCase(), name: p.get('pharmacy') || '' };
+    } catch (e) { return null; }
+  });
+  const linkJoinPharmacy = () => {
+    const api = window.SaathiPillAPI;
+    if (!joinData || !api || !api.enabled || !api.hasSession()) return;
+    const jd = joinData;
+    setJoinData(null); // one-shot
+    api.addPharmacy(jd.code).then(function () {
+      try { window.dispatchEvent(new CustomEvent('sp_pharmacies_changed')); } catch (e) {}
+      showToast(`🏥 Linked to ${jd.name || jd.code} — order refills from the Refills tab`, { duration: 4500 });
+    }).catch(function () {
+      showToast('⚠ Could not link the pharmacy — add it in Profile → Pharmacy partner', { duration: 4500 });
+    });
+  };
   const [isNewUser, setIsNewUser] = useState(false);
   const [userMeds, setUserMeds] = useState(null);
   const [familyMeds, setFamilyMeds] = useState({}); // keyed by member name
@@ -170,7 +207,10 @@ function App() {
     setUserSymptoms((prev) => [...prev, { ...payload, timestamp: new Date().toISOString() }]);
     const api = window.SaathiPillAPI;
     if (api && api.enabled && api.hasSession()) {
-      api.addSymptom({ symptoms: payload.symptoms || [], mood: payload.mood, note: payload.note }).catch(function () {});
+      api.addSymptom({ symptoms: payload.symptoms || [], mood: payload.mood, note: payload.note })
+        .then(function () { return api.symptoms(); })
+        .then(function (list) { setUserSymptoms(list || []); })
+        .catch(function () {});
     }
   };
   const handleAddAppointment = (payload) => {
@@ -179,7 +219,10 @@ function App() {
     setUserAppointments((prev) => [...prev, { ...payload, date: iso, id: Date.now() }]);
     const api = window.SaathiPillAPI;
     if (api && api.enabled && api.hasSession()) {
-      api.addAppointment({ doctor: payload.doctor || 'Doctor', specialty: payload.specialty, date: iso, time: payload.time || '', location: payload.location, reason: payload.reason, reminderLead: payload.reminderLead }).catch(function () {});
+      api.addAppointment({ doctor: payload.doctor || 'Doctor', specialty: payload.specialty, date: iso, time: payload.time || '', location: payload.location, reason: payload.reason, reminderLead: payload.reminderLead })
+        .then(function () { return api.appointments(); })
+        .then(function (list) { setUserAppointments(list || []); })
+        .catch(function () {});
     }
   };
 
@@ -191,7 +234,9 @@ function App() {
     if (api && api.enabled && api.hasSession() && current && current.doseLogId && willBeTaken && !isOffline) {
       api.markDose(current.doseLogId, 'take').catch(function () {});
     }
-    setUserMeds(prev => (prev || medicines).map(m => m.id === id ? { ...m, taken: !m.taken, skipped: false, skipDate: null, skipReason: null, skipIcon: null, skipExcluded: false } : m));
+    // Acting in the app dismisses the matching desktop notification too.
+    if (current && current.doseLogId && willBeTaken) closeDoseNotification(current.doseLogId);
+    setUserMeds(prev => (prev || medicines).map(m => m.id === id ? { ...m, taken: !m.taken, takenAt: !m.taken ? new Date().toISOString() : null, skipped: false, skipDate: null, skipReason: null, skipIcon: null, skipExcluded: false } : m));
     // L-11: any toggle while offline is queued for sync
     if (isOffline) {
       setPendingSync(prev => ({ ...prev, [id]: true }));
@@ -378,32 +423,67 @@ function App() {
       setUserMeds(cards);
       setAdherenceDaily((daily && daily.series) || []);
       setIsNewUser(cards.length === 0);
+      // Saved symptoms + appointments (History, Doctor Report, appointment banner).
+      // Non-blocking: a hiccup here never stops meds from loading.
+      api.symptoms().then(function (list) { setUserSymptoms(list || []); }).catch(function () {});
+      api.appointments().then(function (list) { setUserAppointments(list || []); }).catch(function () {});
       // Pull any pharmacy prescriptions waiting for this patient + go live so new
       // ones arrive instantly while the app is open.
       api.pharmacyPushes().then(function (list) {
         if (window.PharmacyBridge) PharmacyBridge.write(list || []);
       }).catch(function () {});
       if (window.PharmacyBridge && PharmacyBridge.connectRealtime) PharmacyBridge.connectRealtime();
+      // Ask for notification permission right away so medicine reminders reach
+      // the desktop/phone without hunting for the Profile toggle.
+      if (window.SaathiPillPush && SaathiPillPush.autoEnable) SaathiPillPush.autoEnable();
       return true;
     } catch (e) {
       return false; // never block the UI on a backend hiccup
     }
   }, []);
 
-  // ── Medication reminders (Web Push + in-app) ──
-  // Register the service worker so reminders can arrive, open the actionable
-  // reminder card when one fires, and let notification buttons mark take/snooze.
+  // ── Medication reminders (Web Push + in-app, kept in sync) ──
+  // The desktop notification and the in-app reminder card are two views of the
+  // same dose: acting on either one dismisses the other (and any other open
+  // tab/device, via the backend's dose.updated broadcast).
+
+  // Dismiss the OS notification for a dose (they're tagged dose-<id> by the SW).
+  const closeDoseNotification = (doseId) => {
+    if (!doseId || !navigator.serviceWorker) return;
+    navigator.serviceWorker.getRegistration().then(function (r) {
+      if (!r || !r.getNotifications) return;
+      r.getNotifications({ tag: 'dose-' + doseId }).then(function (list) {
+        list.forEach(function (n) { n.close(); });
+      }).catch(function () {});
+    }).catch(function () {});
+  };
+
   useEffect(() => {
     if (window.SaathiPillPush && window.SaathiPillPush.supported) {
       window.SaathiPillPush.register().catch(function () {});
     }
-    const openReminderForDose = (doseId) => {
+    const openReminderForDose = (doseId, opts) => {
       const card = (userMeds || []).find(m => m.doseLogId === doseId);
       const med = card || { id: doseId, doseLogId: doseId, name: 'Your medicine', dose: '', time: '' };
-      setOverlayData(med);
+      setOverlayData({ ...med, openSheet: !!(opts && opts.openSheet) });
       setOverlayScreen('reminder');
     };
     const onReminder = (e) => { const d = (e && e.detail) || {}; if (d.doseId) openReminderForDose(d.doseId); };
+    // The user acted somewhere (this tab, desktop notification, another device,
+    // a caregiver) → dismiss the reminder here + the OS notification.
+    const onDoseUpdated = (e) => {
+      const d = (e && e.detail) || {};
+      if (!d.doseId) return;
+      closeDoseNotification(d.doseId);
+      if (openReminderRef.current === d.doseId) {
+        setOverlayScreen(null);
+        setOverlayData(null);
+        if (d.action === 'take') showToast('✓ Marked as taken');
+        else if (d.action === 'snooze') showToast('⏰ Snoozed 10 minutes');
+        else if (d.action === 'skip') showToast('Dose skipped');
+      }
+      if (d.action === 'take' || d.action === 'skip') loadRealData();
+    };
     const onSWMessage = (event) => {
       const m = (event && event.data) || {};
       if (m.type !== 'dose-action') return;
@@ -411,25 +491,72 @@ function App() {
       const live = api && api.enabled && api.hasSession();
       if (m.action === 'take' && m.doseId) {
         if (live) api.markDose(m.doseId, 'take').then(loadRealData).catch(function () {});
+        if (openReminderRef.current === m.doseId) { setOverlayScreen(null); setOverlayData(null); }
+        showToast('✓ Marked as taken');
       } else if (m.action === 'snooze' && m.doseId) {
         if (live) api.markDose(m.doseId, 'snooze').catch(function () {});
+        if (openReminderRef.current === m.doseId) { setOverlayScreen(null); setOverlayData(null); }
+        showToast('⏰ Snoozed 10 minutes');
+      } else if (m.action === 'options' && m.doseId) {
+        // "Can't take it ▾" on the desktop notification → open the card with
+        // the options sheet (snooze / doctor stopped / side effects) already up.
+        openReminderForDose(m.doseId, { openSheet: true });
       } else if (m.doseId) {
         openReminderForDose(m.doseId);
       }
     };
     window.addEventListener('sp_dose_reminder', onReminder);
+    window.addEventListener('sp_dose_updated', onDoseUpdated);
     if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', onSWMessage);
     return () => {
       window.removeEventListener('sp_dose_reminder', onReminder);
+      window.removeEventListener('sp_dose_updated', onDoseUpdated);
       if (navigator.serviceWorker) navigator.serviceWorker.removeEventListener('message', onSWMessage);
     };
   }, [userMeds, loadRealData]);
+
+  // Cold start from a desktop notification: when no tab was open, the service
+  // worker launches the app with #dose=<id>&action=<take|snooze|options|open>.
+  // Perform the action (or open the reminder card) once we're signed in.
+  const hashHandledRef = useRef(false);
+  useEffect(() => {
+    if (hashHandledRef.current) return;
+    const m = (window.location.hash || '').match(/#dose=([^&]+)&action=([a-z]+)/);
+    if (!m) return;
+    const api = window.SaathiPillAPI;
+    if (!api || !api.enabled || !api.hasSession()) return;
+    const doseId = decodeURIComponent(m[1]);
+    const action = m[2];
+    // For opening the card, wait until the medicine list has loaded so the
+    // card shows real details instead of a placeholder.
+    if ((action === 'open' || action === 'options') && userMeds === null) return;
+    hashHandledRef.current = true;
+    try { history.replaceState(null, '', window.location.pathname + window.location.search); } catch (e) {}
+    if (action === 'take') {
+      api.markDose(doseId, 'take').then(loadRealData).catch(function () {});
+      showToast('✓ Marked as taken');
+    } else if (action === 'snooze') {
+      api.markDose(doseId, 'snooze').catch(function () {});
+      showToast('⏰ Snoozed 10 minutes');
+    } else {
+      const card = (userMeds || []).find(x => x.doseLogId === doseId);
+      setOverlayData({ ...(card || { id: doseId, doseLogId: doseId, name: 'Your medicine', dose: '', time: '' }), openSheet: action === 'options' });
+      setOverlayScreen('reminder');
+    }
+  }, [userMeds, screen]); // eslint-disable-line
 
   // If someone was invited as a caregiver, surface it right after they sign in so
   // the invite link "just works" — no hunting for the Family tab.
   const surfacePendingInvites = () => {
     const api = window.SaathiPillAPI;
     if (!api || !api.enabled || !api.hasSession()) return;
+    // Arrived via an invite link → go straight to Family; the invite card is
+    // fetched there by its id, so it works even for a mistyped phone number.
+    if (inviteData && inviteData.link) {
+      setTab('family'); setScreen('family'); setOverlayScreen(null);
+      showToast(`🤝 ${inviteData.by ? inviteData.by + ' invited you' : 'You were invited'} as a caregiver — accept below`, { duration: 4500 });
+      return;
+    }
     api.caregivingInvites().then(list => {
       if (list && list.length > 0) {
         setTab('family'); setScreen('family'); setOverlayScreen(null);
@@ -440,13 +567,14 @@ function App() {
 
   // After onboarding, go to profile setup, then home
   const handleOnboardingDone = () => setScreen('profileSetup');
-  const handleProfileDone = () => { loadRealData(); setScreen('home'); surfacePendingInvites(); };
+  const handleProfileDone = () => { loadRealData(); setScreen('home'); surfacePendingInvites(); linkJoinPharmacy(); };
   const handleLogin = async () => {
     // Real backend session (AuthScreen already verified the OTP) → load real data.
     const loaded = await loadRealData();
     if (!loaded) { setIsNewUser(false); setUserMeds(medicines); } // demo/offline fallback
     setScreen('home');
     surfacePendingInvites();
+    linkJoinPharmacy();
   };
   const handleSignUp = (name) => {
     // New account starts genuinely empty — no medicines, no adherence history.
@@ -518,14 +646,16 @@ function App() {
       snoozeCount={reminderSnoozes}
       snoozeCap={SNOOZE_CAP}
       isOffline={isOffline}
+      initialSheetOpen={!!(overlayData && overlayData.openSheet)}
       onTaken={() => {
         setSnoozeCounts(prev => ({ ...prev, [reminderId]: 0 }));
         // Mark taken in state + persist to backend (real adherence).
-        setUserMeds(prev => (prev || medicines).map(m => m.id === reminderId ? { ...m, taken: true, skipped: false } : m));
+        setUserMeds(prev => (prev || medicines).map(m => m.id === reminderId ? { ...m, taken: true, takenAt: new Date().toISOString(), skipped: false } : m));
         const api = window.SaathiPillAPI;
         if (api && api.enabled && api.hasSession() && reminderMed && reminderMed.doseLogId && !isOffline) {
           api.markDose(reminderMed.doseLogId, 'take').catch(function () {});
         }
+        if (reminderMed && reminderMed.doseLogId) closeDoseNotification(reminderMed.doseLogId);
         closeOverlay();
         showToast(isOffline ? 'Marked taken — pending sync to caregiver' : '✓ Marked as taken!', isOffline ? { kind: 'offline' } : {});
       }}
@@ -537,6 +667,7 @@ function App() {
         if (api && api.enabled && api.hasSession() && reminderMed && reminderMed.doseLogId && !isOffline) {
           api.markDose(reminderMed.doseLogId, 'snooze').catch(function () {});
         }
+        if (reminderMed && reminderMed.doseLogId) closeDoseNotification(reminderMed.doseLogId);
         if (next >= SNOOZE_CAP) {
           // L-06: cap reached — log as probable miss and escalate
           showToast(`Snooze limit reached (${SNOOZE_CAP}) — escalating to caregiver`, { kind: 'offline', duration: 3500 });
@@ -567,14 +698,52 @@ function App() {
           if (api && api.enabled && api.hasSession() && reminderMed && reminderMed.doseLogId && !isOffline) {
             api.markDose(reminderMed.doseLogId, 'skip', { skipReason: reason.label, skipExcluded: !!reason.excludesFromAdherence }).catch(function () {});
           }
-          const excluded = reason.excludesFromAdherence;
-          showToast(`${reason.icon} Skipped (${reason.label.toLowerCase()})${excluded ? ' — excluded from adherence %' : ''}`, { duration: 3200 });
+          if (reminderMed && reminderMed.doseLogId) closeDoseNotification(reminderMed.doseLogId);
+          if (reason.openSymptoms) {
+            // Side effects → capture what they're feeling for the doctor report.
+            setOverlayScreen('logSymptoms');
+            showToast('🤒 Dose skipped — tell us what you\'re feeling', { duration: 3200 });
+          } else {
+            const excluded = reason.excludesFromAdherence;
+            showToast(`${reason.icon} Skipped (${reason.label.toLowerCase()})${excluded ? ' — excluded from adherence %' : ''}`, { duration: 3200 });
+          }
         }
+      }}
+      onStopMed={(m) => {
+        // "Doctor told me to stop" — remove the medicine entirely (list + backend);
+        // reminders for it stop with it.
+        if (reminderMed && reminderMed.doseLogId) closeDoseNotification(reminderMed.doseLogId);
+        closeOverlay();
+        handleStopMed(reminderMed || m);
       }}
       onEscalation={() => { setOverlayScreen('escalation'); }}
     />,
+    editMed: <EditMedicineScreen
+      med={overlayData}
+      onClose={closeOverlay}
+      onSave={(patch) => {
+        const med = overlayData;
+        if (!med) { closeOverlay(); return; }
+        // Optimistic local update so the card reflects the change instantly.
+        setUserMeds(prev => (prev || []).map(x => x.id === med.id ? { ...x, time: patch.time, remindersOn: patch.remindersOn, remindBeforeMin: patch.remindBeforeMin } : x));
+        const api = window.SaathiPillAPI;
+        const finish = () => {
+          closeOverlay();
+          showToast(patch.remindersOn
+            ? `✓ ${med.name} — ${patch.time}${patch.remindBeforeMin ? ` · reminds ${patch.remindBeforeMin} min early` : ''}`
+            : `🔕 ${med.name} — reminders off`);
+        };
+        if (api && api.enabled && api.hasSession() && med.id) {
+          return api.updateMedication(med.id, patch).then(loadRealData).then(finish).catch(() => {
+            showToast('⚠ Could not save — check your connection', { duration: 3500 });
+            closeOverlay();
+          });
+        }
+        finish();
+      }}
+    />,
     escalation: <EscalationScreen onClose={closeOverlay} />,
-    history: <HistoryScreen onClose={closeOverlay} isNewUser={isNewUser} userAppointments={userAppointments} userSymptoms={userSymptoms} />,
+    history: <HistoryScreen onClose={closeOverlay} isNewUser={isNewUser} userAppointments={userAppointments} userSymptoms={userSymptoms} adherenceDaily={adherenceDaily} />,
     analytics: <AnalyticsScreen onClose={closeOverlay} isNewUser={isNewUser} adherenceDaily={adherenceDaily} />,
     report: <DoctorReportScreen onClose={closeOverlay} userName={tweaks.userName} userSymptoms={userSymptoms} userMeds={userMeds} adherenceDaily={adherenceDaily} onLogSymptoms={() => { closeOverlay(); navigate('logSymptoms'); }} />,
     offline: <OfflineScreen onClose={closeOverlay} />,
@@ -591,17 +760,24 @@ function App() {
     />,
     addFamily: <AddFamilyMemberScreen onClose={closeOverlay} onAdded={(member) => {
       // Create the invite when they tap "Send invite"; the screen then stays open
-      // on the share step (SMS / copy link). Closing happens on "Done".
+      // on the share step (SMS / copy link) with the invite id in the link.
       const api = window.SaathiPillAPI;
       if (api && api.enabled && api.hasSession() && member) {
-        api.inviteFamily({
+        return api.inviteFamily({
           memberName: member.name,
           memberPhone: member.phone,
           relationship: member.relation,
           permissions: member.permissions || [],
-        }).catch(function () {});
+        }).then(function (row) {
+          showToast('✓ Invite created — now share it');
+          return row;
+        }).catch(function () {
+          showToast('⚠ Could not create the invite — check your connection', { duration: 4000 });
+          return null;
+        });
       }
       showToast('✓ Invite created — now share it');
+      return null;
     }} userName={tweaks.userName} />,
   };
 
@@ -635,6 +811,8 @@ function App() {
       handleSignUp={handleSignUp}
       handleLogout={handleLogout}
       loadRealData={loadRealData}
+      joinData={joinData}
+      linkJoinPharmacy={linkJoinPharmacy}
       isNewUser={isNewUser}
       userMeds={userMeds}
       userAppointments={userAppointments}
@@ -743,7 +921,7 @@ function App() {
 }
 
 // ── Inner app content (separated so it works with and without frame) ──
-function AppInner({ screen, setScreen, tab, setTab, overlayScreen, overlayScreens, closeOverlay, navigate, handleOnboardingDone, handleProfileDone, handleLogin, handleSignUp, handleLogout, loadRealData, isNewUser, userMeds, userAppointments, handleAddMed, handleToggleMed, handleStopMed, showBottomNav, toast, isOffline, pendingSync, pendingPushes, onAcceptPush, onDismissPush, adherenceDaily, tweaks, inviteData }) {
+function AppInner({ screen, setScreen, tab, setTab, overlayScreen, overlayScreens, closeOverlay, navigate, handleOnboardingDone, handleProfileDone, handleLogin, handleSignUp, handleLogout, loadRealData, isNewUser, userMeds, userAppointments, handleAddMed, handleToggleMed, handleStopMed, showBottomNav, toast, isOffline, pendingSync, pendingPushes, onAcceptPush, onDismissPush, adherenceDaily, tweaks, inviteData, joinData, linkJoinPharmacy }) {
 
   const handleTabChange = (t) => {
     setTab(t);
@@ -760,10 +938,17 @@ function AppInner({ screen, setScreen, tab, setTab, overlayScreen, overlayScreen
         const api = window.SaathiPillAPI;
         if (api && api.enabled && api.hasSession()) {
           setScreen('home');
-          loadRealData().then(ok => { if (!ok) setScreen('auth'); }).catch(() => setScreen('auth'));
+          loadRealData().then(ok => {
+            if (!ok) { setScreen('auth'); return; }
+            // Already signed in and opened an invite link → take them straight
+            // to Family where the invite card is waiting, instead of ignoring it.
+            if (inviteData) { setTab('family'); setScreen('family'); }
+            // Scanned a pharmacy counter QR while signed in → link right away.
+            if (linkJoinPharmacy) linkJoinPharmacy();
+          }).catch(() => setScreen('auth'));
         } else setScreen('auth');
       }} />}
-      {screen === 'auth' && <AuthScreen onLogin={handleLogin || (() => setScreen('home'))} onSignUp={handleSignUp || (() => setScreen('onboarding'))} showDemoHints={tweaks.showDemoHints} invite={inviteData} />}
+      {screen === 'auth' && <AuthScreen onLogin={handleLogin || (() => setScreen('home'))} onSignUp={handleSignUp || (() => setScreen('onboarding'))} showDemoHints={tweaks.showDemoHints} invite={inviteData} joinPharmacy={joinData} />}
       {screen === 'onboarding' && <OnboardingScreen onDone={handleOnboardingDone} />}
       {screen === 'profileSetup' && <ProfileSetupScreen onDone={handleProfileDone} />}
 
@@ -776,6 +961,7 @@ function AppInner({ screen, setScreen, tab, setTab, overlayScreen, overlayScreen
           onAddAppointment={() => navigate('addAppointment')}
           onAppointmentReminder={(apt) => navigate('appointmentReminder', apt)}
           onReminderClick={(med) => navigate('reminder', med)}
+          onEditMed={(med) => navigate('editMed', med)}
           userName={tweaks.userName}
           isNewUser={isNewUser}
           userMeds={userMeds}
@@ -791,7 +977,7 @@ function AppInner({ screen, setScreen, tab, setTab, overlayScreen, overlayScreen
         />
       )}
       {screen === 'family' && (
-        <FamilyScreen onNavigate={navigate} isNewUser={isNewUser} />
+        <FamilyScreen onNavigate={navigate} isNewUser={isNewUser} inviteLinkId={inviteData && inviteData.link} />
       )}
       {screen === 'refills' && (
         <RefillsScreen onNavigate={navigate} userMeds={userMeds} />

@@ -96,6 +96,7 @@
     dailyAdherence: function (days) { return req('/api/me/adherence/daily?days=' + (days || 90)); },
     medications: function () { return req('/api/medications'); },
     addMedication: function (med) { return req('/api/medications', { method: 'POST', body: JSON.stringify(med) }); },
+    updateMedication: function (id, patch) { return req('/api/medications/' + encodeURIComponent(id), { method: 'PATCH', body: JSON.stringify(patch) }); },
     deleteMedication: function (groupId) { return req('/api/medications/' + encodeURIComponent(groupId), { method: 'DELETE' }); },
     doses: function (date) { return req('/api/doses' + (date ? '?date=' + date : '')); },
     markDose: function (id, action, extra) {
@@ -113,6 +114,7 @@
     revokeFamily: function (id) { return req('/api/family/' + encodeURIComponent(id), { method: 'DELETE' }); },
     // ── Caregiving (acting on someone else's data) ──
     caregivingInvites: function () { return req('/api/caregiving/invites'); },
+    caregivingInvite: function (id) { return req('/api/caregiving/invites/' + encodeURIComponent(id)); },
     acceptCaregiving: function (id) { return req('/api/caregiving/invites/' + encodeURIComponent(id) + '/accept', { method: 'POST', body: '{}' }); },
     declineCaregiving: function (id) { return req('/api/caregiving/invites/' + encodeURIComponent(id) + '/decline', { method: 'POST', body: '{}' }); },
     caregiving: function () { return req('/api/caregiving'); },
@@ -149,6 +151,7 @@
         meal: m.meal || '',
         icon: '💊',
         taken: log ? log.status === 'taken' : false,
+        takenAt: log ? log.takenAt : null, // powers the "Taken late by…" tag
         skipped: log ? log.status === 'skipped' : false,
         skipDate: log && log.status === 'skipped' ? today : null,
         doseLogId: log ? log.id : null,
@@ -157,6 +160,8 @@
         instructions: m.instructions || null,
         schedule: m.schedule || 'daily',
         courseEndDate: m.courseEndDate || null,
+        remindersOn: m.remindersOn !== false,
+        remindBeforeMin: m.remindBeforeMin || 0,
         activeToday: true,
       };
     },

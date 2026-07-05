@@ -1,0 +1,21 @@
+# SaathiPill reverse proxy — automatic HTTPS via Let's Encrypt.
+# Domains and email come from the .env file (docker-compose passes them in).
+
+{
+	email {$ACME_EMAIL}
+}
+
+# Backend API + Socket.IO (websockets are proxied automatically).
+{$API_DOMAIN} {
+	reverse_proxy api:3000
+}
+
+# Patient app.
+{$APP_DOMAIN} {
+	reverse_proxy patient-web:80
+}
+
+# Pharmacy portal.
+{$PORTAL_DOMAIN} {
+	reverse_proxy portal-web:80
+}

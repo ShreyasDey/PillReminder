@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { emitToPharmacy } from "../lib/realtime.js";
+import { emitToPatient, emitToPharmacy } from "../lib/realtime.js";
 import { notify } from "../lib/notify.js";
 import { vapidPublicKey, sendPushToUser } from "../lib/webpush.js";
 import { addMedicationForPatient, type MedPayload } from "../services/medications.js";
@@ -20,8 +20,9 @@ const last10 = (phone: string) => phone.replace(/\D/g, "").slice(-10);
 
 async function findUserByLast10(last: string) {
   if (!last) return null;
+  // Full scan + digit compare — a `contains` query misses phones stored with
+  // spaces ("+91 98765 43210"). Fine at this scale.
   const users = await prisma.user.findMany({
-    where: { phone: { contains: last } },
     select: { id: true, name: true, phone: true },
   });
   return users.find((u) => last10(u.phone) === last) || null;
@@ -136,7 +137,6 @@ export default async function patientRoutes(app: FastifyInstance) {
         hours: p.hours,
         lat: p.lat,
         lng: p.lng,
-        primary: p.code === profile?.linkedPharmacyCode,
         offer: offer ? { label: offer.label, discount: offer.discount, expiry: offer.expiry } : null,
       });
     }
@@ -315,6 +315,39 @@ export default async function patientRoutes(app: FastifyInstance) {
     return reply.code(201).send(created);
   });
 
+  // Edit one dose row's schedule/reminder settings (tap the medicine in Today).
+  app.patch("/medications/:id", async (req, reply) => {
+    const { id } = z.object({ id: z.string() }).parse(req.params);
+    const body = z
+      .object({
+        time: z.string().regex(/^\d{1,2}:\d{2}\s*(AM|PM)$/i).optional(),
+        meal: z.string().optional(),
+        remindersOn: z.boolean().optional(),
+        remindBeforeMin: z.number().int().min(0).max(120).optional(),
+      })
+      .parse(req.body);
+    const med = await prisma.medication.findFirst({ where: { id, patientId: req.user.sub } });
+    if (!med) return reply.code(404).send({ error: "Medicine not found" });
+
+    const updated = await prisma.medication.update({ where: { id }, data: body });
+
+    // Keep today's still-pending dose in step with a time change so the reminder
+    // fires at the new time (unique key includes scheduledTime, hence the check).
+    if (body.time && body.time !== med.time) {
+      const date = ymd(new Date());
+      const clash = await prisma.doseLog.findFirst({
+        where: { medicationId: id, date, scheduledTime: body.time },
+      });
+      if (!clash) {
+        await prisma.doseLog.updateMany({
+          where: { medicationId: id, date, status: "pending" },
+          data: { scheduledTime: body.time, lastRemindedAt: null, nextRemindAt: null },
+        });
+      }
+    }
+    return updated;
+  });
+
   app.delete("/medications/:groupId", async (req) => {
     const { groupId } = z.object({ groupId: z.string() }).parse(req.params);
     await prisma.medication.updateMany({
@@ -351,16 +384,27 @@ export default async function patientRoutes(app: FastifyInstance) {
     });
     if (!dose) return reply.code(404).send({ error: "Dose not found" });
 
+    // Every open surface (app tab, desktop notification, another device) hears
+    // about the action so reminders dismiss everywhere at once.
+    const broadcast = (action: string) =>
+      emitToPatient(req.user.sub, "dose.updated", {
+        doseId: id,
+        action,
+        drug: dose.medication.drug,
+        scheduledTime: dose.scheduledTime,
+      });
+
     if (body.action === "take") {
       const updated = await prisma.doseLog.update({
         where: { id },
         data: { status: "taken", takenAt: new Date(), pendingSync: !!body.offline },
       });
+      broadcast("take");
       return updated;
     }
 
     if (body.action === "skip") {
-      return prisma.doseLog.update({
+      const updated = await prisma.doseLog.update({
         where: { id },
         data: {
           status: "skipped",
@@ -368,6 +412,8 @@ export default async function patientRoutes(app: FastifyInstance) {
           skipExcluded: !!body.skipExcluded,
         },
       });
+      broadcast("skip");
+      return updated;
     }
 
     // snooze: re-remind in 10 minutes; cap at 3, then escalate to caregiver
@@ -376,6 +422,7 @@ export default async function patientRoutes(app: FastifyInstance) {
       where: { id },
       data: { snoozeCount: next, nextRemindAt: new Date(Date.now() + 10 * 60_000) },
     });
+    broadcast("snooze");
     if (next >= 3) {
       // Escalate to this patient's caregivers: links where the patient is the OWNER
       // and a caregiver (member) has accepted. Notify each caregiver.
@@ -467,13 +514,25 @@ export default async function patientRoutes(app: FastifyInstance) {
   // ── Family / caregivers (owner side: the patient sharing their data) ──
   // The current user is the OWNER (patient). These links describe caregivers they
   // have invited and what each caregiver is allowed to do.
-  app.get("/family", async (req) =>
-    prisma.familyLink.findMany({
+  app.get("/family", async (req) => {
+    const links = await prisma.familyLink.findMany({
       // Only live links — a broken (revoked) or declined link disappears from the list.
       where: { ownerId: req.user.sub, status: { in: ["invited", "active"] } },
       orderBy: { createdAt: "desc" },
-    }),
-  );
+    });
+    // memberExists → a re-shared invite link opens LOG IN (not sign-up) for
+    // people who already have a SaathiPill account.
+    return Promise.all(
+      links.map(async (l) => {
+        let memberExists = Boolean(l.memberId);
+        if (!memberExists && l.memberPhone) {
+          const u = await findUserByLast10(l.memberPhone);
+          memberExists = Boolean(u && u.id !== req.user.sub);
+        }
+        return { ...l, memberExists };
+      }),
+    );
+  });
 
   app.post("/family/invite", async (req, reply) => {
     const body = z
@@ -486,8 +545,9 @@ export default async function patientRoutes(app: FastifyInstance) {
       .parse(req.body);
 
     const phone = body.memberPhone ? last10(body.memberPhone) : null;
-    // If a user with that phone already exists, link them immediately (still
-    // "invited" until they accept, but we can match on memberId too).
+    const member = phone ? await findUserByLast10(phone) : null;
+    const memberExists = Boolean(member && member.id !== req.user.sub);
+
     const row = await prisma.familyLink.create({
       data: {
         ownerId: req.user.sub,
@@ -499,19 +559,18 @@ export default async function patientRoutes(app: FastifyInstance) {
     });
 
     // Notify the caregiver in-app if they already have an account.
-    if (phone) {
-      const member = await findUserByLast10(phone);
+    if (memberExists && member) {
       const owner = await prisma.user.findUnique({ where: { id: req.user.sub } });
-      if (member && member.id !== req.user.sub) {
-        await notify({
-          userId: member.id,
-          kind: "caregiver-invite",
-          title: `${owner?.name || "Someone"} invited you as a caregiver`,
-          body: "Open SaathiPill → Family to accept and start helping.",
-        });
-      }
+      await notify({
+        userId: member.id,
+        kind: "caregiver-invite",
+        title: `${owner?.name || "Someone"} invited you as a caregiver`,
+        body: "Open SaathiPill → Family to accept and start helping.",
+      });
     }
-    return reply.code(201).send(row);
+    // memberExists lets the app build an invite link that opens LOG IN (phone
+    // prefilled) for people who already have an account, instead of sign-up.
+    return reply.code(201).send({ ...row, memberExists });
   });
 
   // Update a caregiver's permissions (owner only).
@@ -564,6 +623,29 @@ export default async function patientRoutes(app: FastifyInstance) {
     }));
   });
 
+  // Look up one invite by id — powers invite deep-links (?invite=1&link=<id>),
+  // so the invited person can see and accept it even if the phone on the invite
+  // was mistyped or their account uses a different number.
+  app.get("/caregiving/invites/:id", async (req, reply) => {
+    const { id } = z.object({ id: z.string() }).parse(req.params);
+    const link = await prisma.familyLink.findUnique({ where: { id } });
+    if (!link || link.status !== "invited" || link.memberId) {
+      return reply.code(404).send({ error: "Invite not available" });
+    }
+    if (link.ownerId === req.user.sub) {
+      return reply.code(400).send({ error: "This is your own invite link — share it with your family member" });
+    }
+    const owner = await prisma.user.findUnique({ where: { id: link.ownerId }, select: { name: true } });
+    return {
+      id: link.id,
+      ownerId: link.ownerId,
+      ownerName: owner?.name || "Patient",
+      relationship: link.relationship,
+      permissions: normalizePermissions(link.permissions),
+      createdAt: link.createdAt,
+    };
+  });
+
   // Accept an invite → become the linked member, activate the link.
   app.post("/caregiving/invites/:id/accept", async (req, reply) => {
     const { id } = z.object({ id: z.string() }).parse(req.params);
@@ -574,34 +656,32 @@ export default async function patientRoutes(app: FastifyInstance) {
       return reply.code(404).send({ error: "Invite not available" });
     }
     if (link.ownerId === req.user.sub) return reply.code(400).send({ error: "Cannot care for yourself" });
-    // Only the addressed phone may accept (when the invite specified one).
-    if (link.memberPhone && link.memberPhone !== phone) {
-      return reply.code(403).send({ error: "This invite is for a different phone number" });
-    }
+    // The invite id is unguessable and was deliberately shared by the owner, so
+    // possession of it authorizes the accept even when the phone the owner typed
+    // doesn't match (typos are common). The owner is told exactly who accepted
+    // and can revoke in one tap.
+    const phoneMismatch = Boolean(link.memberPhone && link.memberPhone !== phone);
     const updated = await prisma.familyLink.update({
       where: { id },
-      data: { memberId: req.user.sub, status: "active" },
+      data: { memberId: req.user.sub, status: "active", ...(phoneMismatch ? { memberPhone: phone || link.memberPhone } : {}) },
     });
-    const owner = await prisma.user.findUnique({ where: { id: link.ownerId } });
     await notify({
       userId: link.ownerId,
       kind: "caregiver-accepted",
       title: `${me?.name || "Your caregiver"} accepted your invite`,
-      body: `They can now help with your medicines${owner ? "" : ""}.`,
+      body: phoneMismatch
+        ? `They joined from a different number (…${phone.slice(-4)}) than the one you typed. Not who you invited? Remove them in Family.`
+        : "They can now help with your medicines.",
     });
     return updated;
   });
 
-  // Decline an invite.
+  // Decline an invite. Same possession rule as accept: holding the link id is
+  // enough, so a mistyped phone never leaves an invite stuck.
   app.post("/caregiving/invites/:id/decline", async (req, reply) => {
     const { id } = z.object({ id: z.string() }).parse(req.params);
-    const me = await prisma.user.findUnique({ where: { id: req.user.sub } });
-    const phone = me ? last10(me.phone) : "";
     const link = await prisma.familyLink.findUnique({ where: { id } });
     if (!link || link.status !== "invited") return reply.code(404).send({ error: "Invite not available" });
-    if (link.memberPhone && link.memberPhone !== phone) {
-      return reply.code(403).send({ error: "This invite is for a different phone number" });
-    }
     await prisma.familyLink.update({ where: { id }, data: { status: "declined" } });
     return { ok: true };
   });
@@ -720,7 +800,9 @@ export default async function patientRoutes(app: FastifyInstance) {
           ? { status: "taken", takenAt: new Date() }
           : { status: "skipped", skipReason: body.skipReason, skipExcluded: !!body.skipExcluded },
     });
-    // Let the patient know a caregiver acted for them.
+    // Let the patient know a caregiver acted for them — and dismiss any reminder
+    // still showing on the patient's own devices.
+    emitToPatient(link.ownerId, "dose.updated", { doseId, action: body.action, scheduledTime: dose.scheduledTime });
     const me = await prisma.user.findUnique({ where: { id: req.user.sub }, select: { name: true } });
     await notify({
       userId: link.ownerId,
@@ -814,7 +896,24 @@ export default async function patientRoutes(app: FastifyInstance) {
       });
     }
 
-    if (pharmacy) emitToPharmacy(pharmacy.id, "refill.created", order);
+    if (pharmacy) {
+      emitToPharmacy(pharmacy.id, "refill.created", order);
+      // Desktop notification for the pharmacy staff — a new order needs action.
+      const patient = await prisma.user.findUnique({ where: { id: req.user.sub }, select: { name: true } });
+      const itemCount = body.items.reduce((s, it) => s + it.qty, 0);
+      const pharmacists = await prisma.user.findMany({
+        where: { pharmacyId: pharmacy.id, role: "pharmacist" },
+        select: { id: true },
+      });
+      for (const p of pharmacists) {
+        await notify({
+          userId: p.id,
+          kind: "new-refill-order",
+          title: `🛒 New refill order — ${patient?.name ?? "a patient"}`,
+          body: `${body.items.length} medicine${body.items.length === 1 ? "" : "s"} · ${itemCount} units${amount ? ` · ₹${Math.round(amount / 100)}` : ""} · ${order.displayId}`,
+        });
+      }
+    }
     return reply.code(201).send(order);
   });
 
