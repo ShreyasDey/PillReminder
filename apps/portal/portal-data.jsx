@@ -1,4 +1,4 @@
-// ── SaathiPill Pharmacy Portal — Fake Data ──
+// ── Arogya Pharmacy Portal — Fake Data ──
 
 // Clinical & Confident theme — Deep Blue + Teal + White.
 // `coral`* keys now hold the deep-blue primary; `sage`* hold teal. Cool-white surfaces.

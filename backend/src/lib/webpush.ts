@@ -1,5 +1,5 @@
 // Browser Web Push delivery. Reaches the patient's phone/desktop even when the
-// SaathiPill tab is closed, as long as they granted notification permission and
+// Arogya tab is closed, as long as they granted notification permission and
 // their browser has a live push subscription stored.
 
 import webpush from "web-push";
@@ -7,7 +7,7 @@ import { prisma } from "./prisma.js";
 
 const PUBLIC = process.env.VAPID_PUBLIC_KEY || "";
 const PRIVATE = process.env.VAPID_PRIVATE_KEY || "";
-const SUBJECT = process.env.VAPID_SUBJECT || "mailto:care@saathipill.in";
+const SUBJECT = process.env.VAPID_SUBJECT || "mailto:care@arogya.in";
 
 export const vapidPublicKey = PUBLIC;
 const configured = Boolean(PUBLIC && PRIVATE);
@@ -25,6 +25,17 @@ export interface PushPayload {
 
 export async function sendPushToUser(userId: string, payload: PushPayload) {
   if (!configured) return;
+  // Only push to accounts with an active session. Logging out revokes the
+  // refresh token; a push subscription with no session behind it is stale, so we
+  // drop it and send nothing — reminders never reach a logged-out browser.
+  const activeSession = await prisma.refreshToken.findFirst({
+    where: { userId, expiresAt: { gt: new Date() } },
+    select: { id: true },
+  });
+  if (!activeSession) {
+    await prisma.pushSubscription.deleteMany({ where: { userId } }).catch(() => {});
+    return;
+  }
   const subs = await prisma.pushSubscription.findMany({ where: { userId } });
   if (!subs.length) return;
   const body = JSON.stringify(payload);

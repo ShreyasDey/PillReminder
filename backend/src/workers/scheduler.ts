@@ -11,6 +11,10 @@ import { computeDemand7d } from "../lib/demand.js";
 
 const TICK_MS = 60_000; // every minute
 const REPEAT_MS = 30 * 60_000; // re-remind every 30 min while a dose stays pending
+// Stop auto-reminding a dose once it's this many minutes past its scheduled time.
+// Prevents a missed morning dose from pinging all day and late at night — after
+// the window it stays pending and is finalized as "missed" the next day.
+const REMINDER_WINDOW_MIN = 120;
 const REFILL_LEAD_DAYS = 7; // remind this many days before the supply runs out
 
 /** Parse a reminder lead like "1d" / "2h" / "30m" into milliseconds (default 1 day). */
@@ -66,10 +70,26 @@ async function fireReminders() {
 
   for (const d of due) {
     if (!d.medication.remindersOn) continue; // reminders muted for this medicine
-    // Fire remindBeforeMin minutes early when the patient configured a head start.
-    if (timeToMinutes(d.scheduledTime) - (d.medication.remindBeforeMin || 0) > nowMinutes) continue; // not due yet
+    // A medicine can have several reminder head-starts (e.g. 30 min early, 10 min
+    // early AND at the scheduled time). Fire when we cross each trigger point;
+    // after the last trigger, keep repeating every REPEAT_MS until acted on.
+    const offsets = d.medication.remindOffsets.length
+      ? d.medication.remindOffsets
+      : [d.medication.remindBeforeMin || 0];
+    const schedMin = timeToMinutes(d.scheduledTime);
+    const passedTriggers = offsets.map((o) => schedMin - o).filter((m) => m <= nowMinutes);
+    if (!passedTriggers.length) continue; // earliest trigger not reached yet
+    // Past the reminder window → stop nagging (a morning dose shouldn't ping at
+    // night). A snoozed dose is honoured up to its nextRemindAt even if late.
+    if (nowMinutes - schedMin > REMINDER_WINDOW_MIN && !(d.nextRemindAt && d.nextRemindAt > now)) continue;
     if (d.nextRemindAt && d.nextRemindAt > now) continue; // snoozed
-    if (d.lastRemindedAt && now.getTime() - d.lastRemindedAt.getTime() < REPEAT_MS) continue; // reminded recently
+    if (d.lastRemindedAt) {
+      const lastMin = d.lastRemindedAt.getHours() * 60 + d.lastRemindedAt.getMinutes();
+      const latestTrigger = Math.max(...passedTriggers);
+      const newTriggerCrossed = lastMin < latestTrigger; // a configured point passed since last fire
+      const repeatDue = now.getTime() - d.lastRemindedAt.getTime() >= REPEAT_MS;
+      if (!newTriggerCrossed && !repeatDue) continue;
+    }
 
     const med = d.medication;
     await sendPushToUser(med.patientId, {
@@ -225,6 +245,6 @@ async function tick() {
 }
 
 // eslint-disable-next-line no-console
-console.log("SaathiPill scheduler started");
+console.log("Arogya scheduler started");
 void tick();
 setInterval(tick, TICK_MS);

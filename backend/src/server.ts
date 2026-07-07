@@ -40,7 +40,7 @@ app.get("/geocode", { preHandler: app.authenticate }, async (req, reply) => {
   try {
     const r = await fetch(url, {
       headers: {
-        "User-Agent": "SaathiPill/1.0 (medication adherence app)",
+        "User-Agent": "Arogya/1.0 (medication adherence app)",
         "Accept-Language": "en",
       },
     });
@@ -64,4 +64,4 @@ await app.listen({ port, host: "0.0.0.0" });
 
 // Attach Socket.IO to the same HTTP server.
 initRealtime(app.server, corsOrigins);
-app.log.info(`SaathiPill API + realtime on :${port}`);
+app.log.info(`Arogya API + realtime on :${port}`);

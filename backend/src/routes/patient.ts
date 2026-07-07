@@ -5,7 +5,7 @@ import { emitToPatient, emitToPharmacy } from "../lib/realtime.js";
 import { notify } from "../lib/notify.js";
 import { vapidPublicKey, sendPushToUser } from "../lib/webpush.js";
 import { addMedicationForPatient, type MedPayload } from "../services/medications.js";
-import { adherencePct, dailyAdherenceSeries, ymd } from "../lib/schedule.js";
+import { adherencePct, dailyAdherenceSeries, timeToMinutes, ymd } from "../lib/schedule.js";
 import {
   PERMISSIONS,
   type Permission,
@@ -212,7 +212,7 @@ export default async function patientRoutes(app: FastifyInstance) {
 
   app.post("/push/test", async (req) => {
     await sendPushToUser(req.user.sub, {
-      title: "SaathiPill reminders are on ✅",
+      title: "Arogya reminders are on ✅",
       body: "This is how your medicine reminders will look.",
       tag: "test",
     });
@@ -257,12 +257,12 @@ export default async function patientRoutes(app: FastifyInstance) {
     const since = ymd(new Date(Date.now() - days * 86_400_000));
     const doses = await prisma.doseLog.findMany({
       where: { medication: { patientId: req.user.sub }, date: { gte: since } },
-      select: { date: true, status: true, skipExcluded: true },
+      select: { date: true, status: true, skipExcluded: true, scheduledTime: true, takenAt: true },
     });
     return { days, series: dailyAdherenceSeries(doses) };
   });
 
-  // Pharmacies registered in SaathiPill, ranked by distance from the patient's
+  // Pharmacies registered in Arogya, ranked by distance from the patient's
   // GPS location. Powers the "browse nearby pharmacies" picker.
   app.get("/pharmacies/nearby", async (req) => {
     const { lat, lng } = z
@@ -324,6 +324,10 @@ export default async function patientRoutes(app: FastifyInstance) {
         meal: z.string().optional(),
         remindersOn: z.boolean().optional(),
         remindBeforeMin: z.number().int().min(0).max(120).optional(),
+        // Multiple reminder head-starts, e.g. [30, 10, 0] = 30 min early, 10 min
+        // early AND at the scheduled time.
+        remindOffsets: z.array(z.number().int().min(0).max(120)).max(6).optional(),
+        doctor: z.string().max(80).nullable().optional(),
       })
       .parse(req.body);
     const med = await prisma.medication.findFirst({ where: { id, patientId: req.user.sub } });
@@ -395,6 +399,18 @@ export default async function patientRoutes(app: FastifyInstance) {
       });
 
     if (body.action === "take") {
+      // A dose can't be marked taken before its time (5-minute grace for clock
+      // drift). Only applies to today's doses — past days can be reconciled.
+      const today = ymd(new Date());
+      if (dose.date === today) {
+        const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+        const schedMin = timeToMinutes(dose.scheduledTime);
+        if (schedMin - nowMin > 5) {
+          return reply.code(400).send({
+            error: `This dose is scheduled for ${dose.scheduledTime} — you can mark it taken then.`,
+          });
+        }
+      }
       const updated = await prisma.doseLog.update({
         where: { id },
         data: { status: "taken", takenAt: new Date(), pendingSync: !!body.offline },
@@ -478,7 +494,13 @@ export default async function patientRoutes(app: FastifyInstance) {
   );
   app.post("/symptoms", async (req, reply) => {
     const body = z
-      .object({ symptoms: z.array(z.string()).default([]), mood: z.string().optional(), note: z.string().optional() })
+      .object({
+        symptoms: z.array(z.string()).default([]),
+        mood: z.string().optional(),
+        note: z.string().optional(),
+        // Optional dose this symptom relates to, e.g. "Metformin 500mg · 8:00 AM"
+        linkedMed: z.string().max(120).optional(),
+      })
       .parse(req.body);
     const row = await prisma.symptomLog.create({ data: { ...body, patientId: req.user.sub } });
     return reply.code(201).send(row);
@@ -521,7 +543,7 @@ export default async function patientRoutes(app: FastifyInstance) {
       orderBy: { createdAt: "desc" },
     });
     // memberExists → a re-shared invite link opens LOG IN (not sign-up) for
-    // people who already have a SaathiPill account.
+    // people who already have an Arogya account.
     return Promise.all(
       links.map(async (l) => {
         let memberExists = Boolean(l.memberId);
@@ -565,7 +587,7 @@ export default async function patientRoutes(app: FastifyInstance) {
         userId: member.id,
         kind: "caregiver-invite",
         title: `${owner?.name || "Someone"} invited you as a caregiver`,
-        body: "Open SaathiPill → Family to accept and start helping.",
+        body: "Open Arogya → Family to accept and start helping.",
       });
     }
     // memberExists lets the app build an invite link that opens LOG IN (phone
@@ -738,7 +760,7 @@ export default async function patientRoutes(app: FastifyInstance) {
     const since = ymd(new Date(Date.now() - days * 86_400_000));
     const doses = await prisma.doseLog.findMany({
       where: { medication: { patientId: link.ownerId }, date: { gte: since } },
-      select: { date: true, status: true, skipExcluded: true },
+      select: { date: true, status: true, skipExcluded: true, scheduledTime: true, takenAt: true },
     });
     return { days, series: dailyAdherenceSeries(doses) };
   });

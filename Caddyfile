@@ -1,4 +1,4 @@
-# SaathiPill reverse proxy — automatic HTTPS via Let's Encrypt.
+# Arogya reverse proxy — automatic HTTPS via Let's Encrypt.
 # Domains and email come from the .env file (docker-compose passes them in).
 
 {

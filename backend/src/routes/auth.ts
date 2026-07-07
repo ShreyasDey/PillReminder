@@ -24,7 +24,7 @@ export default async function authRoutes(app: FastifyInstance) {
         expiresAt: new Date(Date.now() + OTP_TTL_MS),
       },
     });
-    await sendSms(body.phone, `Your SaathiPill code is ${code}. Valid 5 minutes.`);
+    await sendSms(body.phone, `Your Arogya code is ${code}. Valid 5 minutes.`);
 
     // Show the code on screen until a real SMS gateway is configured. Once you set
     // SMS_PROVIDER (e.g. msg91), it's delivered by SMS and no longer revealed here.

@@ -267,7 +267,7 @@ function EscalationScreen({ onClose }) {
       title: 'Phone Call Reminder',
       time: '1:20 PM',
       desc: 'Still no response. Automated voice call in your preferred language.',
-      detail: 'Call from SaathiPill (Hindi)',
+      detail: 'Call from Arogya (Hindi)',
       tag: 'Voice call',
     },
     {
@@ -303,7 +303,7 @@ function EscalationScreen({ onClose }) {
             Server-managed — runs even if the app is closed or offline
           </div>
           <div style={{ fontFamily: fonts.body, fontSize: 11, color: C.textMuted, lineHeight: 1.4 }}>
-            Steps 2–4 are triggered from SaathiPill's servers, so phone kill or low connectivity won't stop the chain.
+            Steps 2–4 are triggered from Arogya's servers, so phone kill or low connectivity won't stop the chain.
           </div>
         </div>
       </div>
@@ -405,13 +405,14 @@ function HistoryScreen({ onClose, isNewUser, userAppointments, userSymptoms, adh
   }
 
   // Real per-day status, computed from the backend adherence series (this month).
-  // Each series entry has { date, taken, missed, counted }. A day is:
+  // Each series entry has { date, taken, late, missed, counted }. A day is:
   //   • missed  (red)   — at least ONE dose missed that day
-  //   • taken   (green) — every counted dose was taken, none missed
+  //   • late    (amber) — everything taken, but ≥1 dose more than 5 min late
+  //   • taken   (green) — every counted dose was taken on time
   //   • partial (today, still in progress)
   //   • none    — no doses logged that day
   const dayData = {};
-  const dayStat = {}; // day-of-month → { taken, missed, counted }
+  const dayStat = {}; // day-of-month → { taken, late, missed, counted }
   const todayNum = today.getDate();
   const seriesByDay = {};
   (adherenceDaily || []).forEach(e => {
@@ -422,15 +423,16 @@ function HistoryScreen({ onClose, isNewUser, userAppointments, userSymptoms, adh
   for (let d = 1; d <= daysInMonth; d++) {
     if (d > todayNum) { dayData[d] = 'future'; continue; }
     const e = seriesByDay[d];
-    const stat = { taken: e ? e.taken : 0, missed: e ? e.missed : 0, counted: e ? e.counted : 0 };
+    const stat = { taken: e ? e.taken : 0, late: e ? (e.late || 0) : 0, missed: e ? e.missed : 0, counted: e ? e.counted : 0 };
     dayStat[d] = stat;
     if (stat.missed > 0) dayData[d] = 'missed';               // missed even one → red
     else if (d === todayNum) dayData[d] = 'partial';          // today is never "done"
-    else dayData[d] = stat.counted > 0 ? 'taken' : 'none';    // all taken → green, else no data
+    else if (stat.counted === 0) dayData[d] = 'none';
+    else dayData[d] = stat.late > 0 ? 'late' : 'taken';       // amber if any late, else green
   }
 
-  const dayColors = { taken: C.sage, missed: C.red, partial: C.coral, future: 'transparent', none: 'transparent' };
-  const dayLabels = { taken: 'All medicines taken ✓', missed: 'Missed a dose ✗', partial: 'In progress', future: '', none: 'No doses logged' };
+  const dayColors = { taken: C.sage, late: C.amber, missed: C.red, partial: C.coral, future: 'transparent', none: 'transparent' };
+  const dayLabels = { taken: 'All medicines taken ✓', late: 'Taken, but some late ⏱', missed: 'Missed a dose ✗', partial: 'In progress', future: '', none: 'No doses logged' };
 
   const weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
@@ -485,9 +487,9 @@ function HistoryScreen({ onClose, isNewUser, userAppointments, userSymptoms, adh
       <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', padding: '0 20px 24px' }}>
         {/* Calendar */}
         <Card style={{ marginBottom: 16 }}>
-          {/* Legend — green = all medicines taken, red = missed a dose */}
+          {/* Legend — green = all taken on time, amber = some late, red = missed */}
           <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-            {[['taken', 'All taken'], ['missed', 'Missed']].map(([k, l]) => (
+            {[['taken', 'All taken'], ['late', 'Taken late'], ['missed', 'Missed']].map(([k, l]) => (
               <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div style={{ width: 10, height: 10, borderRadius: '50%', background: dayColors[k] }} />
                 <span style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted }}>{l}</span>
@@ -618,8 +620,10 @@ function HistoryScreen({ onClose, isNewUser, userAppointments, userSymptoms, adh
               const col = dayColors[dd] === 'transparent' ? C.textMuted : (dayColors[dd] || C.textMuted);
               const summary = dd === 'missed'
                 ? `Missed ${st.missed} of ${st.counted} ${st.counted === 1 ? 'dose' : 'doses'}`
+                : dd === 'late'
+                ? `All ${st.counted} taken — ${st.late} ${st.late === 1 ? 'was' : 'were'} late ⏱`
                 : dd === 'taken'
-                ? `All ${st.counted} ${st.counted === 1 ? 'dose' : 'doses'} taken ✓`
+                ? `All ${st.counted} ${st.counted === 1 ? 'dose' : 'doses'} taken on time ✓`
                 : dd === 'partial'
                 ? (st.taken > 0 ? `${st.taken} taken so far today` : 'In progress — no doses marked yet')
                 : 'No doses logged this day';
@@ -628,7 +632,7 @@ function HistoryScreen({ onClose, isNewUser, userAppointments, userSymptoms, adh
                   <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: col }}>{summary}</div>
                   {st.counted > 0 && (
                     <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted, marginTop: 4 }}>
-                      {st.taken} taken · {st.missed} missed
+                      {st.taken} taken{st.late > 0 ? ` (${st.late} late)` : ''} · {st.missed} missed
                     </div>
                   )}
                 </Card>
@@ -1137,7 +1141,7 @@ function FamilyScreen({ onNavigate, isNewUser, inviteLinkId }) {
   };
   const smsHrefFor = (f) => {
     const asRel = f.relationship ? ` as their ${f.relationship.toLowerCase()}` : '';
-    const msg = `${ownerName || 'A family member'} invited you to help manage their medicines on SaathiPill${asRel}. New here? The link sets up your account with details pre-filled. Tap to join: ${inviteLinkFor(f)}`;
+    const msg = `${ownerName || 'A family member'} invited you to help manage their medicines on Arogya${asRel}. New here? The link sets up your account with details pre-filled. Tap to join: ${inviteLinkFor(f)}`;
     return `sms:${f.memberPhone ? '+91' + f.memberPhone : ''}?body=${encodeURIComponent(msg)}`;
   };
   const [copiedId, setCopiedId] = React.useState(null);
@@ -1623,11 +1627,11 @@ function CaregiverScreen({ member, onClose, onAddMed, familyMeds, linkId, permis
           {waShown && (
             <div style={{ background: '#ECE5DD', borderRadius: 14, padding: 12 }}>
               <div style={{ background: C.white, borderRadius: '4px 14px 14px 14px', padding: '12px 14px', maxWidth: '85%', boxShadow: '0 1px 4px rgba(0,0,0,0.1)' }}>
-                <div style={{ fontFamily: fonts.body, fontSize: 12, fontWeight: 700, color: '#25D366', marginBottom: 4 }}>💊 SaathiPill</div>
+                <div style={{ fontFamily: fonts.body, fontSize: 12, fontWeight: 700, color: '#25D366', marginBottom: 4 }}>💊 Arogya</div>
                 <div style={{ fontFamily: fonts.body, fontSize: 14, color: '#111', lineHeight: 1.5 }}>
                   ⚠️ <strong>Mohan Kumar</strong> missed his Telmisartan 40mg dose (1:00 PM). <br /><br />
                   He has not responded to 2 reminders. Please check in. 🙏<br /><br />
-                  <span style={{ color: '#5B8EE0' }}>👉 Open SaathiPill</span>
+                  <span style={{ color: '#5B8EE0' }}>👉 Open Arogya</span>
                 </div>
                 <div style={{ fontFamily: fonts.body, fontSize: 11, color: '#aaa', textAlign: 'right', marginTop: 6 }}>1:28 PM ✓✓</div>
               </div>
@@ -1732,7 +1736,7 @@ function AddFamilyMemberScreen({ onClose, onAdded, userName }) {
   const smsHref = React.useMemo(() => {
     const who = userName || 'A family member';
     const asRel = relation ? ` as their ${relation.toLowerCase()}` : '';
-    const msg = `${who} invited you to help manage their medicines on SaathiPill${asRel}. New here? The link sets up your account with details pre-filled. Tap to join: ${inviteLink}`;
+    const msg = `${who} invited you to help manage their medicines on Arogya${asRel}. New here? The link sets up your account with details pre-filled. Tap to join: ${inviteLink}`;
     return `sms:${phone ? '+91' + phone : ''}?body=${encodeURIComponent(msg)}`;
   }, [userName, relation, inviteLink, phone]);
 
@@ -1991,7 +1995,7 @@ function AddFamilyMemberScreen({ onClose, onAdded, userName }) {
             <div style={{ display: 'flex', gap: 10, padding: '12px 14px', borderRadius: 14, background: '#EEF3FF', border: '1px solid #D5E2F7' }}>
               <span style={{ fontSize: 18 }}>ℹ️</span>
               <div style={{ fontFamily: fonts.body, fontSize: 12.5, color: C.text, lineHeight: 1.5 }}>
-                <strong>New to SaathiPill?</strong> Opening the link starts their sign-up with their name and your details already filled in — they just verify their phone number and accept. Once they do, they'll appear here as active.
+                <strong>New to Arogya?</strong> Opening the link starts their sign-up with their name and your details already filled in — they just verify their phone number and accept. Once they do, they'll appear here as active.
               </div>
             </div>
 

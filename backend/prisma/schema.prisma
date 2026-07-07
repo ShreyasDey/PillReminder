@@ -172,6 +172,8 @@ model Medication {
   // Per-medicine reminder behaviour (editable by tapping the medicine in Today)
   remindersOn     Boolean  @default(true) // false = never push reminders for this medicine
   remindBeforeMin Int      @default(0)    // fire the reminder N minutes before the dose time
+  remindOffsets   Int[]    @default([])   // multiple head-starts, e.g. [30,10,0]; empty → use remindBeforeMin
+  doctor          String?  // prescribing doctor ("Dr. Mehta") — links medicine to a doctor
   createdAt     DateTime   @default(now())
 
   doseLogs      DoseLog[]
@@ -227,6 +229,7 @@ model SymptomLog {
   symptoms  String[] @default([])
   mood      String?
   note      String?
+  linkedMed String?  // optional dose this symptom relates to, e.g. "Metformin 500mg · 8:00 AM"
   timestamp DateTime @default(now())
 }
 

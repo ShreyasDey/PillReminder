@@ -82,10 +82,26 @@ describe("dailyAdherenceSeries", () => {
       { date: "2026-06-22", status: "pending" }, // not yet measurable
     ]);
     expect(series).toEqual([
-      { date: "2026-06-20", taken: 1, missed: 1, skipped: 0, counted: 2, pct: 50 },
-      { date: "2026-06-21", taken: 2, missed: 0, skipped: 0, counted: 2, pct: 100 },
-      { date: "2026-06-22", taken: 0, missed: 0, skipped: 0, counted: 0, pct: null },
+      { date: "2026-06-20", taken: 1, late: 0, missed: 1, skipped: 0, counted: 2, pct: 50 },
+      { date: "2026-06-21", taken: 2, late: 0, missed: 0, skipped: 0, counted: 2, pct: 100 },
+      { date: "2026-06-22", taken: 0, late: 0, missed: 0, skipped: 0, counted: 0, pct: null },
     ]);
+  });
+
+  it("flags doses taken more than 5 minutes after their scheduled time as late", () => {
+    const series = dailyAdherenceSeries([
+      // on time (exactly at 8:00)
+      { date: "2026-06-20", status: "taken", scheduledTime: "8:00 AM", takenAt: new Date("2026-06-20T08:00:00") },
+      // inside the 5-minute grace → not late
+      { date: "2026-06-20", status: "taken", scheduledTime: "9:00 AM", takenAt: new Date("2026-06-20T09:04:00") },
+      // 47 minutes late → late
+      { date: "2026-06-20", status: "taken", scheduledTime: "1:00 PM", takenAt: new Date("2026-06-20T13:47:00") },
+      // missed doses never count as late
+      { date: "2026-06-20", status: "missed", scheduledTime: "9:00 PM" },
+    ]);
+    expect(series[0].taken).toBe(3);
+    expect(series[0].late).toBe(1);
+    expect(series[0].missed).toBe(1);
   });
 });
 

@@ -7,8 +7,8 @@
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="SaathiPill" />
-<title>SaathiPill v2 — Pill Reminder App</title>
+<meta name="apple-mobile-web-app-title" content="Arogya" />
+<title>Arogya v2 — Pill Reminder App</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,800;1,9..144,600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -137,6 +137,10 @@ function App() {
   const [tab, setTab] = useState('home');
   const [overlayScreen, setOverlayScreen] = useState(null);
   const [overlayData, setOverlayData] = useState(null);
+
+  // The signed-in account's real name (stored at login). The tweaks value is
+  // only a fallback for demo mode — never show it over a real account.
+  const displayName = (window.SaathiPillAPI && SaathiPillAPI.enabled && SaathiPillAPI.hasSession() && SaathiPillAPI.userName()) || tweaks.userName;
   // Which dose's reminder card is currently on screen (null when none) — used
   // to dismiss it when the same dose is acted on elsewhere (desktop
   // notification, another tab/device, a caregiver).
@@ -207,7 +211,7 @@ function App() {
     setUserSymptoms((prev) => [...prev, { ...payload, timestamp: new Date().toISOString() }]);
     const api = window.SaathiPillAPI;
     if (api && api.enabled && api.hasSession()) {
-      api.addSymptom({ symptoms: payload.symptoms || [], mood: payload.mood, note: payload.note })
+      api.addSymptom({ symptoms: payload.symptoms || [], mood: payload.mood, note: payload.note, linkedMed: payload.linkedMed || undefined })
         .then(function () { return api.symptoms(); })
         .then(function (list) { setUserSymptoms(list || []); })
         .catch(function () {});
@@ -334,6 +338,7 @@ function App() {
         activeToday,
         source: med.source || null,
         instructions: med.instructions || null,
+        doctor: med.doctor || null,
       }));
 
     setUserMeds(prev => [...(prev || []), ...newEntries]);
@@ -353,7 +358,7 @@ function App() {
     meal: med.meal, schedule: med.schedule || 'daily', weeklyDays: med.weeklyDays || [],
     cyclicOn: med.cyclicOn || null, cyclicOff: med.cyclicOff || null,
     courseType: med.courseType || 'ongoing', courseDays: med.courseDays || null,
-    instructions: med.instructions || null, source: med.source || null,
+    instructions: med.instructions || null, doctor: med.doctor || null, source: med.source || null,
   });
 
   // Success toast — improvement #9 (better position) + #15 (offline indicator)
@@ -368,6 +373,8 @@ function App() {
     setToast({ msg, ...opts });
     setTimeout(() => setToast(null), opts.duration || 2800);
   };
+  // Screens outside the App component tree (e.g. MedicineCard) can toast too.
+  window.spToast = showToast;
 
   // Keep pharmacy pushes in sync with the portal (this tab + other tabs)
   useEffect(() => {
@@ -463,6 +470,10 @@ function App() {
       window.SaathiPillPush.register().catch(function () {});
     }
     const openReminderForDose = (doseId, opts) => {
+      // Never surface a reminder when not signed in (e.g. a lingering socket
+      // event or notification click after logout) — reminders are per-account.
+      const api = window.SaathiPillAPI;
+      if (api && api.enabled && !api.hasSession()) return;
       const card = (userMeds || []).find(m => m.doseLogId === doseId);
       const med = card || { id: doseId, doseLogId: doseId, name: 'Your medicine', dose: '', time: '' };
       setOverlayData({ ...med, openSheet: !!(opts && opts.openSheet) });
@@ -545,6 +556,30 @@ function App() {
     }
   }, [userMeds, screen]); // eslint-disable-line
 
+  // Catch-up reminder: if a dose came due while the app (or the reminder server)
+  // was closed, surface the most overdue pending dose as soon as the app opens —
+  // the patient never silently misses one just because nothing was running.
+  const bootReminderRef = useRef(false);
+  useEffect(() => {
+    if (bootReminderRef.current) return;
+    if (screen !== 'home' || overlayScreen) return; // wait until we've landed, don't stack overlays
+    if (!userMeds || userMeds.length === 0) return;
+    bootReminderRef.current = true; // one shot per app open
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    const toMin = (t) => { const x = String(t || '').match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i); if (!x) return 0; let h = parseInt(x[1], 10) % 12; if (x[3].toUpperCase() === 'PM') h += 12; return h * 60 + parseInt(x[2], 10); };
+    // Only catch up on a dose that's due but not long past — matches the server's
+    // 2-hour reminder window, so a morning dose won't pop a card at midnight.
+    const REMINDER_WINDOW_MIN = 120;
+    const overdue = userMeds
+      .filter(m => !m.taken && !m.skipped && m.doseLogId && m.remindersOn !== false && toMin(m.time) <= nowMin && (nowMin - toMin(m.time)) <= REMINDER_WINDOW_MIN)
+      .sort((a, b) => toMin(b.time) - toMin(a.time))[0]; // most recent still-actionable dose
+    if (overdue) {
+      setOverlayData(overdue);
+      setOverlayScreen('reminder');
+    }
+  }, [userMeds, screen, overlayScreen]);
+
   // If someone was invited as a caregiver, surface it right after they sign in so
   // the invite link "just works" — no hunting for the Family tab.
   const surfacePendingInvites = () => {
@@ -580,9 +615,14 @@ function App() {
     // New account starts genuinely empty — no medicines, no adherence history.
     setIsNewUser(true); setUserMeds([]); setAdherenceDaily([]); setScreen('onboarding');
   };
-  const handleLogout = () => {
+  const handleLogout = async () => {
     const api = window.SaathiPillAPI;
-    if (api && api.enabled) api.logout();
+    // Stop reminders reaching this browser once logged out: unsubscribe this
+    // device's push (needs the token, so do it BEFORE clearing the session) and
+    // drop the realtime socket. Then revoke the session on the server.
+    try { if (window.SaathiPillPush && SaathiPillPush.disable) await SaathiPillPush.disable(); } catch (e) {}
+    try { if (window.PharmacyBridge && PharmacyBridge.disconnectRealtime) PharmacyBridge.disconnectRealtime(); } catch (e) {}
+    if (api && api.enabled) await api.logout();
     // Clear in-memory state and return to the login screen.
     setUserMeds(null); setAdherenceDaily([]); setIsNewUser(false);
     setUserSymptoms([]); setUserAppointments([]); setPharmacyPushes([]);
@@ -633,7 +673,7 @@ function App() {
       }}
       onClose={closeOverlay}
     />,
-    logSymptoms: <LogSymptomsScreen onClose={closeOverlay} onDone={(payload) => { handleAddSymptom(payload); closeOverlay(); const n = payload.symptoms.length; showToast(n > 0 ? `✓ Logged ${n} symptom${n > 1 ? 's' : ''} · added to history & report` : '✓ Mood logged · added to history & report'); }} />,
+    logSymptoms: <LogSymptomsScreen onClose={closeOverlay} userMeds={userMeds} onDone={(payload) => { handleAddSymptom(payload); closeOverlay(); const n = payload.symptoms.length; showToast(n > 0 ? `✓ Logged ${n} symptom${n > 1 ? 's' : ''} · added to history & report` : '✓ Mood logged · added to history & report'); }} />,
     addAppointment: <AddAppointmentScreen onClose={closeOverlay} onDone={(apt) => { handleAddAppointment(apt); closeOverlay(); const dateStr = (apt.date instanceof Date ? apt.date : new Date(apt.date)).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' }); showToast(`✓ Appointment saved · ${dateStr} at ${apt.time}`); }} />,
     appointmentReminder: <AppointmentReminderModal
       appointment={overlayData}
@@ -725,12 +765,14 @@ function App() {
         const med = overlayData;
         if (!med) { closeOverlay(); return; }
         // Optimistic local update so the card reflects the change instantly.
-        setUserMeds(prev => (prev || []).map(x => x.id === med.id ? { ...x, time: patch.time, remindersOn: patch.remindersOn, remindBeforeMin: patch.remindBeforeMin } : x));
+        setUserMeds(prev => (prev || []).map(x => x.id === med.id ? { ...x, time: patch.time, remindersOn: patch.remindersOn, remindBeforeMin: patch.remindBeforeMin, remindOffsets: patch.remindOffsets || [] } : x));
         const api = window.SaathiPillAPI;
         const finish = () => {
           closeOverlay();
+          const offs = (patch.remindOffsets || []).slice().sort((a, b) => b - a);
+          const offsLabel = offs.map(o => o === 0 ? 'on time' : o + ' min early').join(', ');
           showToast(patch.remindersOn
-            ? `✓ ${med.name} — ${patch.time}${patch.remindBeforeMin ? ` · reminds ${patch.remindBeforeMin} min early` : ''}`
+            ? `✓ ${med.name} — ${patch.time} · reminds ${offsLabel}`
             : `🔕 ${med.name} — reminders off`);
         };
         if (api && api.enabled && api.hasSession() && med.id) {
@@ -745,7 +787,7 @@ function App() {
     escalation: <EscalationScreen onClose={closeOverlay} />,
     history: <HistoryScreen onClose={closeOverlay} isNewUser={isNewUser} userAppointments={userAppointments} userSymptoms={userSymptoms} adherenceDaily={adherenceDaily} />,
     analytics: <AnalyticsScreen onClose={closeOverlay} isNewUser={isNewUser} adherenceDaily={adherenceDaily} />,
-    report: <DoctorReportScreen onClose={closeOverlay} userName={tweaks.userName} userSymptoms={userSymptoms} userMeds={userMeds} adherenceDaily={adherenceDaily} onLogSymptoms={() => { closeOverlay(); navigate('logSymptoms'); }} />,
+    report: <DoctorReportScreen onClose={closeOverlay} userName={displayName} userSymptoms={userSymptoms} userMeds={userMeds} adherenceDaily={adherenceDaily} onLogSymptoms={() => { closeOverlay(); navigate('logSymptoms'); }} />,
     offline: <OfflineScreen onClose={closeOverlay} />,
     pharmacy: <PharmacyBannerScreen onClose={closeOverlay} />,
     // DRUG INTERACTIONS — hidden, re-enable when ready:
@@ -778,7 +820,7 @@ function App() {
       }
       showToast('✓ Invite created — now share it');
       return null;
-    }} userName={tweaks.userName} />,
+    }} userName={displayName} />,
   };
 
   const showBottomNav = screen === 'home' && !overlayScreen;
@@ -923,6 +965,9 @@ function App() {
 // ── Inner app content (separated so it works with and without frame) ──
 function AppInner({ screen, setScreen, tab, setTab, overlayScreen, overlayScreens, closeOverlay, navigate, handleOnboardingDone, handleProfileDone, handleLogin, handleSignUp, handleLogout, loadRealData, isNewUser, userMeds, userAppointments, handleAddMed, handleToggleMed, handleStopMed, showBottomNav, toast, isOffline, pendingSync, pendingPushes, onAcceptPush, onDismissPush, adherenceDaily, tweaks, inviteData, joinData, linkJoinPharmacy }) {
 
+  // Real account name over the demo tweak default (same rule as in App).
+  const displayName = (window.SaathiPillAPI && SaathiPillAPI.enabled && SaathiPillAPI.hasSession() && SaathiPillAPI.userName()) || tweaks.userName;
+
   const handleTabChange = (t) => {
     setTab(t);
   };
@@ -962,7 +1007,7 @@ function AppInner({ screen, setScreen, tab, setTab, overlayScreen, overlayScreen
           onAppointmentReminder={(apt) => navigate('appointmentReminder', apt)}
           onReminderClick={(med) => navigate('reminder', med)}
           onEditMed={(med) => navigate('editMed', med)}
-          userName={tweaks.userName}
+          userName={displayName}
           isNewUser={isNewUser}
           userMeds={userMeds}
           userAppointments={userAppointments}
@@ -983,7 +1028,7 @@ function AppInner({ screen, setScreen, tab, setTab, overlayScreen, overlayScreen
         <RefillsScreen onNavigate={navigate} userMeds={userMeds} />
       )}
       {screen === 'profile' && (
-        <ProfileScreen onNavigate={navigate} userName={tweaks.userName} onLogout={handleLogout} />
+        <ProfileScreen onNavigate={navigate} userName={displayName} onLogout={handleLogout} />
       )}
 
       {/* Bottom Nav */}
@@ -1113,7 +1158,7 @@ function ScreenNavigator({ onNavigate, currentScreen }) {
         padding: '24px 0 24px',
       }}>
         <div style={{ padding: '0 16px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', marginBottom: 16 }}>
-          <div style={{ fontFamily: fonts.heading, fontSize: 18, fontWeight: 800, color: '#fff' }}>💊 SaathiPill</div>
+          <div style={{ fontFamily: fonts.heading, fontSize: 18, fontWeight: 800, color: '#fff' }}>💊 Arogya</div>
           <div style={{ fontFamily: fonts.body, fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>18 screens · All interactive</div>
         </div>
 

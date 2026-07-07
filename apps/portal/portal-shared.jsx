@@ -1,4 +1,4 @@
-// ── SaathiPill Pharmacy Portal — Shared primitives + Dashboard ──
+// ── Arogya Pharmacy Portal — Shared primitives + Dashboard ──
 
 const { useState, useMemo, useEffect, useRef } = React;
 

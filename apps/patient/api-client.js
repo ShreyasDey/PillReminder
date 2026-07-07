@@ -1,4 +1,4 @@
-// SaathiPill patient API client.
+// Arogya patient API client.
 // Talks to the real backend when window.SAATHIPILL_CONFIG.apiUrl is set. When it
 // isn't, `enabled` is false and the app runs on local demo data exactly as before.
 // Everything here is best-effort and guarded — a backend hiccup never white-screens
@@ -158,6 +158,8 @@
         color: '#1D62A6',
         source: m.source || null,
         instructions: m.instructions || null,
+        doctor: m.doctor || null,
+        remindOffsets: m.remindOffsets || [],
         schedule: m.schedule || 'daily',
         courseEndDate: m.courseEndDate || null,
         remindersOn: m.remindersOn !== false,

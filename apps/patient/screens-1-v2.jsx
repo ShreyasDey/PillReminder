@@ -198,10 +198,10 @@ function SplashScreen({ onDone }) {
         </div>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontFamily: fonts.heading, fontSize: 36, fontWeight: 800, color: '#fff', letterSpacing: '-0.02em', marginBottom: 4 }}>
-            SaathiPill
+            Arogya
           </div>
           <div style={{ fontFamily: fonts.body, fontSize: 16, color: 'rgba(255,255,255,0.85)', fontWeight: 400, letterSpacing: '0.02em' }}>
-            साथी · Your daily medicine companion
+            आरोग्य · Your daily medicine companion
           </div>
         </div>
       </div>
@@ -413,7 +413,7 @@ function ProfileSetupScreen({ onDone }) {
       <div style={{ padding: '24px 24px 0', textAlign: 'center' }}>
         <div style={{ fontFamily: fonts.body, fontSize: 13, color: C.warmGray, marginBottom: 4, fontWeight: 500 }}>Step 1 of 2</div>
         <h2 style={{ fontFamily: fonts.heading, fontSize: 26, fontWeight: 800, color: C.text, marginBottom: 6 }}>Tell us about you</h2>
-        <p style={{ fontFamily: fonts.body, fontSize: 15, color: C.textMuted }}>We'll personalise SaathiPill for you</p>
+        <p style={{ fontFamily: fonts.body, fontSize: 15, color: C.textMuted }}>We'll personalise Arogya for you</p>
       </div>
 
       {/* Avatar */}
@@ -691,6 +691,7 @@ function MedicineCard({ med, onToggle, onReminderClick, onEditMed, pendingSync, 
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <Tag icon="🕐">{med.time}</Tag>
             <Tag icon="🍽️">{med.meal}</Tag>
+            {med.doctor && <Tag icon="👨‍⚕️">{med.doctor}</Tag>}
             {med.scheduleLabel && <Tag icon="📆">{med.scheduleLabel}</Tag>}
             {isCourseComplete && <Tag icon="📅">Course ended</Tag>}
             {lateLabel && (
@@ -722,16 +723,27 @@ function MedicineCard({ med, onToggle, onReminderClick, onEditMed, pendingSync, 
               me to stop") instead of a permanent label on every card. */}
         </div>
 
-        {/* Toggle — hidden for completed courses */}
+        {/* Toggle — hidden for completed courses. A dose can't be marked taken
+            before its scheduled time (the backend enforces this too). */}
         {!isCourseComplete && (
           <button
-            onClick={(e) => { e.stopPropagation(); onToggle(med.id); }}
-            title={isSkipped ? 'Undo skip & mark as taken' : (med.taken ? 'Mark as not taken' : 'Mark as taken')}
+            onClick={(e) => {
+              e.stopPropagation();
+              const notYetDue = !med.taken && !isSkipped && status === 'upcoming';
+              if (notYetDue) {
+                if (typeof window.spToast === 'function') window.spToast(`⏳ ${med.name} is scheduled for ${med.time} — you can mark it then`);
+                return;
+              }
+              onToggle(med.id);
+            }}
+            title={isSkipped ? 'Undo skip & mark as taken' : (med.taken ? 'Mark as not taken' : (status === 'upcoming' ? `Available at ${med.time}` : 'Mark as taken'))}
             style={{
-              width: 40, height: 40, borderRadius: 12, border: 'none', cursor: 'pointer',
+              width: 40, height: 40, borderRadius: 12, border: 'none',
+              cursor: (!med.taken && !isSkipped && status === 'upcoming') ? 'not-allowed' : 'pointer',
               background: med.taken ? C.sage : isSkipped ? 'transparent' : C.warmGrayLight,
               border: isSkipped ? `1.5px dashed ${C.warmGray}` : 'none',
               color: isSkipped ? C.textMuted : 'inherit',
+              opacity: (!med.taken && !isSkipped && status === 'upcoming') ? 0.45 : 1,
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
               flexShrink: 0, transition: 'all 0.2s'
             }}>
@@ -1122,6 +1134,7 @@ function HomeScreen({ onNavigate, onAddMed, onLogSymptoms, onAddAppointment, onR
 function AddMedicineScreen({ onDone, onClose, forMember }) {
   const [step, setStep] = useState(0);
   const [drug, setDrug] = useState('');
+  const [doctor, setDoctor] = useState(''); // optional prescribing doctor
   const [doseUnit, setDoseUnit] = useState('tablet'); // 'tablet' | 'ml'
   const [doseAmount, setDoseAmount] = useState(null); // numeric value (e.g. 0.5, 1, 2.5)
   const [doseCustomOpen, setDoseCustomOpen] = useState(false);
@@ -1314,6 +1327,27 @@ function AddMedicineScreen({ onDone, onClose, forMember }) {
             )}
               </div>
           }
+            {/* Prescribing doctor — links the medicine to a doctor (optional) */}
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                Prescribed by <span style={{ fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <input
+                  value={doctor} onChange={(e) => setDoctor(e.target.value)}
+                  placeholder="e.g. Dr. Mehta"
+                  style={{
+                    width: '100%', height: 48, padding: '0 16px 0 44px', borderRadius: 14,
+                    border: `2px solid ${doctor ? C.coral : C.border}`, background: C.white,
+                    fontFamily: fonts.body, fontSize: 15, outline: 'none', boxSizing: 'border-box'
+                  }} />
+                <span style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', fontSize: 18 }}>👨‍⚕️</span>
+              </div>
+              <div style={{ fontFamily: fonts.body, fontSize: 11.5, color: C.textMuted, marginTop: 6, lineHeight: 1.5 }}>
+                Shows on the medicine card and in your doctor report.
+              </div>
+            </div>
+
             {/* DRUG INTERACTIONS — hidden, re-enable when ready
             {drug.toLowerCase().includes('aspirin') &&
           <Card style={{ border: `2px solid ${C.amber}`, background: C.amberLight, marginBottom: 16 }}>
@@ -1894,6 +1928,7 @@ function AddMedicineScreen({ onDone, onClose, forMember }) {
             const customTimesMap = Object.fromEntries(customTimes.map(t => [t.id, t.time]));
             onDone({
               drug, dose, times, meal, criticality, customTimesMap, courseType, courseDays,
+              doctor: doctor.trim() || null,
               schedule,
               weeklyDays: schedule === 'weekly' ? weeklyDays : null,
               cyclicOn:   schedule === 'cyclic' ? cyclicOn   : null,
@@ -2032,7 +2067,7 @@ function AuthScreen({ onLogin, onSignUp, showDemoHints = false, invite = null, j
           }}>💊</div>
 
             <div style={{ fontFamily: fonts.heading, fontSize: 34, fontWeight: 800, color: '#fff', textAlign: 'center', marginBottom: 10, letterSpacing: '-0.02em' }}>
-              SaathiPill
+              Arogya
             </div>
             <div style={{ fontFamily: fonts.body, fontSize: 16, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 1.6, maxWidth: 260 }}>
               Your daily medicine companion — free, offline, and made for India
@@ -2090,7 +2125,7 @@ function AuthScreen({ onLogin, onSignUp, showDemoHints = false, invite = null, j
                     Joining {joinPharmacy.name || 'your pharmacy'}
                   </div>
                   <div style={{ fontFamily: fonts.body, fontSize: 12.5, color: C.textMuted, lineHeight: 1.5 }}>
-                    Enter your mobile number and we’ll link {joinPharmacy.name ? `${joinPharmacy.name}` : 'the pharmacy'} to your account automatically — refills, offers and prescriptions will flow straight into the app. Already using SaathiPill? The same number simply logs you in.
+                    Enter your mobile number and we’ll link {joinPharmacy.name ? `${joinPharmacy.name}` : 'the pharmacy'} to your account automatically — refills, offers and prescriptions will flow straight into the app. Already using Arogya? The same number simply logs you in.
                   </div>
                 </div>
               </div>
@@ -2102,12 +2137,12 @@ function AuthScreen({ onLogin, onSignUp, showDemoHints = false, invite = null, j
                 <span style={{ fontSize: 22 }}>🤝</span>
                 <div>
                   <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 2 }}>
-                    {invite.by ? `${invite.by} invited you to SaathiPill` : 'You’ve been invited to SaathiPill'}
+                    {invite.by ? `${invite.by} invited you to Arogya` : 'You’ve been invited to Arogya'}
                   </div>
                   <div style={{ fontFamily: fonts.body, fontSize: 12.5, color: C.textMuted, lineHeight: 1.5 }}>
                     {mode === 'login'
                       ? <>Welcome back — log in to accept the invite and help manage {invite.by ? `${invite.by}’s` : 'their'} medicines. You’ll be able to {invitePermPhrase}.</>
-                      : <>Enter your mobile number to help manage {invite.by ? `${invite.by}’s` : 'their'} medicines — you’ll be able to {invitePermPhrase}. Already using SaathiPill? The same number simply logs you in, nothing is lost.</>}
+                      : <>Enter your mobile number to help manage {invite.by ? `${invite.by}’s` : 'their'} medicines — you’ll be able to {invitePermPhrase}. Already using Arogya? The same number simply logs you in, nothing is lost.</>}
                   </div>
                 </div>
               </div>
@@ -2210,7 +2245,7 @@ function AuthScreen({ onLogin, onSignUp, showDemoHints = false, invite = null, j
 
               {mode === 'login' ?
             <div style={{ textAlign: 'center' }}>
-                  <span style={{ fontFamily: fonts.body, fontSize: 14, color: C.textMuted }}>New to SaathiPill? </span>
+                  <span style={{ fontFamily: fonts.body, fontSize: 14, color: C.textMuted }}>New to Arogya? </span>
                   <span onClick={() => {setMode('signup');setOtpSent(false);setPhone('');setOtp(['', '', '', '']);setError('');}} style={{ fontFamily: fonts.body, fontSize: 14, color: C.coral, fontWeight: 700, cursor: 'pointer' }}>Sign up free</span>
                 </div> :
 
@@ -2232,8 +2267,14 @@ function AuthScreen({ onLogin, onSignUp, showDemoHints = false, invite = null, j
 function EditMedicineScreen({ med, onClose, onSave }) {
   const m = med || {};
   const [time, setTime] = React.useState(m.time || '8:00 AM');
-  // 'off' | '0' | '10' | '30' — how the reminder should fire for this medicine
-  const [remind, setRemind] = React.useState(m.remindersOn === false ? 'off' : String(m.remindBeforeMin || 0));
+  // Multi-select reminder head-starts: e.g. 30 min early AND at the scheduled
+  // time. Empty selection = no reminders for this medicine.
+  const [offsets, setOffsets] = React.useState(() => {
+    if (m.remindersOn === false) return [];
+    const arr = (m.remindOffsets && m.remindOffsets.length) ? m.remindOffsets : [m.remindBeforeMin || 0];
+    return arr.map(Number);
+  });
+  const toggleOffset = (o) => setOffsets(prev => prev.includes(o) ? prev.filter(x => x !== o) : [...prev, o]);
   const [saving, setSaving] = React.useState(false);
 
   const to24 = (t) => {
@@ -2252,20 +2293,23 @@ function EditMedicineScreen({ med, onClose, onSave }) {
   };
 
   const presets = ['8:00 AM', '1:00 PM', '5:00 PM', '9:00 PM'];
+  // Multi-select: tick every moment you want a reminder at.
   const remindOptions = [
-    ['0',   '🔔', 'At the scheduled time'],
-    ['10',  '⏳', '10 minutes early'],
-    ['30',  '⏳', '30 minutes early'],
-    ['off', '🔕', 'No reminders for this medicine'],
+    [0,  '🔔', 'At the scheduled time'],
+    [10, '⏳', '10 minutes early'],
+    [30, '⏳', '30 minutes early'],
   ];
+  const remindersOff = offsets.length === 0;
 
   const save = () => {
     if (saving) return;
     setSaving(true);
+    const sorted = [...offsets].sort((a, b) => b - a); // e.g. [30, 10, 0]
     Promise.resolve(onSave && onSave({
       time,
-      remindersOn: remind !== 'off',
-      remindBeforeMin: remind === 'off' ? (m.remindBeforeMin || 0) : parseInt(remind, 10),
+      remindersOn: sorted.length > 0,
+      remindOffsets: sorted,
+      remindBeforeMin: sorted.length ? Math.max(...sorted) : (m.remindBeforeMin || 0),
     })).finally(() => setSaving(false));
   };
 
@@ -2302,25 +2346,45 @@ function EditMedicineScreen({ med, onClose, onSave }) {
           </div>
         </div>
 
-        {/* Reminder behaviour */}
+        {/* Reminder behaviour — tick EVERY moment you want a reminder at */}
         <div>
           <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>🔔 When should we remind you?</div>
-          <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted, marginBottom: 10 }}>Reminders repeat every 30 minutes until you act, starting from the moment below.</div>
+          <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted, marginBottom: 10 }}>Pick as many as you like — you'll get a reminder at each. After the last one, it repeats every 30 minutes until you act.</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {remindOptions.map(([id, icon, label]) => (
-              <button key={id} onClick={() => setRemind(id)} style={{
-                display: 'flex', alignItems: 'center', gap: 12, width: '100%',
-                padding: '13px 15px', borderRadius: 14, textAlign: 'left',
-                border: `2px solid ${remind === id ? C.coral : C.border}`,
-                background: remind === id ? C.coralLight : C.white, cursor: 'pointer',
-              }}>
-                <span style={{ fontSize: 20 }}>{icon}</span>
-                <span style={{ flex: 1, fontFamily: fonts.body, fontSize: 14.5, fontWeight: 700, color: remind === id ? C.coral : C.text }}>{label}</span>
-                {remind === id && <span style={{ color: C.coral, fontWeight: 800 }}>✓</span>}
-              </button>
-            ))}
+            {remindOptions.map(([o, icon, label]) => {
+              const on = offsets.includes(o);
+              return (
+                <button key={o} onClick={() => toggleOffset(o)} style={{
+                  display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                  padding: '13px 15px', borderRadius: 14, textAlign: 'left',
+                  border: `2px solid ${on ? C.coral : C.border}`,
+                  background: on ? C.coralLight : C.white, cursor: 'pointer',
+                }}>
+                  <div style={{
+                    width: 22, height: 22, borderRadius: 7, flexShrink: 0,
+                    border: `2px solid ${on ? C.coral : C.warmGray}`,
+                    background: on ? C.coral : 'transparent',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    color: C.white, fontSize: 14, fontWeight: 800,
+                  }}>{on ? '✓' : ''}</div>
+                  <span style={{ fontSize: 20 }}>{icon}</span>
+                  <span style={{ flex: 1, fontFamily: fonts.body, fontSize: 14.5, fontWeight: 700, color: on ? C.coral : C.text }}>{label}</span>
+                </button>
+              );
+            })}
+            {/* No reminders — clears every selection */}
+            <button onClick={() => setOffsets([])} style={{
+              display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+              padding: '13px 15px', borderRadius: 14, textAlign: 'left',
+              border: `2px solid ${remindersOff ? C.amber : C.border}`,
+              background: remindersOff ? C.amberLight : C.white, cursor: 'pointer',
+            }}>
+              <span style={{ fontSize: 20 }}>🔕</span>
+              <span style={{ flex: 1, fontFamily: fonts.body, fontSize: 14.5, fontWeight: 700, color: remindersOff ? '#8A6418' : C.text }}>No reminders for this medicine</span>
+              {remindersOff && <span style={{ color: '#8A6418', fontWeight: 800 }}>✓</span>}
+            </button>
           </div>
-          {remind === 'off' && (
+          {remindersOff && (
             <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 12, background: C.amberLight, fontFamily: fonts.body, fontSize: 12, color: C.text, lineHeight: 1.5 }}>
               ⚠️ You won't get any notifications for {m.name || 'this medicine'} — it stays on your list and still counts in adherence.
             </div>

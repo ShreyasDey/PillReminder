@@ -4,7 +4,7 @@
 const { useState: useStateQA } = React;
 
 // ── SCREEN: LOG SYMPTOMS ──
-function LogSymptomsScreen({ onClose, onDone }) {
+function LogSymptomsScreen({ onClose, onDone, userMeds }) {
   const moods = [
     { id: 'great',   icon: '😀', label: 'Great',    color: '#7BB68F' },
     { id: 'ok',      icon: '🙂', label: 'OK',       color: '#A8B47A' },
@@ -32,7 +32,15 @@ function LogSymptomsScreen({ onClose, onDone }) {
   const [picked, setPicked] = useStateQA([]);
   const [severity, setSeverity] = useStateQA(2); // 1-5
   const [note, setNote] = useStateQA('');
-  const [linkedToMed, setLinkedToMed] = useStateQA(true);
+  // Which dose (if any) this symptom relates to — the patient picks from their
+  // real medicines. Stored as "Drug dose · time".
+  const [linkedMed, setLinkedMed] = useStateQA(null);
+  const doseOptions = (userMeds || []).map(m => ({
+    key: m.id,
+    label: `${m.name}${m.dose ? ' ' + m.dose : ''}`,
+    time: m.time,
+    value: `${m.name}${m.dose ? ' ' + m.dose : ''} · ${m.time}`,
+  }));
 
   const toggle = (id) => setPicked((p) => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
 
@@ -161,30 +169,37 @@ function LogSymptomsScreen({ onClose, onDone }) {
           }}
         />
 
-        {/* Link to recent dose */}
-        <button
-          onClick={() => setLinkedToMed(v => !v)}
-          style={{
-            marginTop: 18, width: '100%',
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '14px 16px', borderRadius: 14,
-            border: `1.5px solid ${linkedToMed ? C.coral : C.border}`,
-            background: linkedToMed ? C.coralLight : C.white,
-            cursor: 'pointer', textAlign: 'left',
-          }}
-        >
-          <div style={{
-            width: 22, height: 22, borderRadius: 7, flexShrink: 0,
-            border: `2px solid ${linkedToMed ? C.coral : C.warmGray}`,
-            background: linkedToMed ? C.coral : 'transparent',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: C.white, fontSize: 14, fontWeight: 800,
-          }}>{linkedToMed ? '✓' : ''}</div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: C.text }}>Link to recent dose</div>
-            <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted, marginTop: 2 }}>Metformin · 8:00 AM (1 h ago)</div>
+        {/* Link to a dose — pick which real medicine this relates to (optional) */}
+        {doseOptions.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <div style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>
+              Link to a dose <span style={{ color: C.textMuted, fontWeight: 500, textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+            </div>
+            <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted, marginBottom: 10 }}>
+              If this feels related to a medicine, tap it — your doctor will see the connection.
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {doseOptions.map(o => {
+                const on = linkedMed === o.value;
+                return (
+                  <button key={o.key} onClick={() => setLinkedMed(on ? null : o.value)} style={{
+                    display: 'flex', alignItems: 'center', gap: 12, width: '100%',
+                    padding: '12px 14px', borderRadius: 14, textAlign: 'left',
+                    border: `1.5px solid ${on ? C.coral : C.border}`,
+                    background: on ? C.coralLight : C.white, cursor: 'pointer',
+                  }}>
+                    <span style={{ fontSize: 18 }}>💊</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: on ? C.coral : C.text }}>{o.label}</div>
+                      <div style={{ fontFamily: fonts.body, fontSize: 11.5, color: C.textMuted }}>Scheduled {o.time}</div>
+                    </div>
+                    {on && <span style={{ color: C.coral, fontWeight: 800 }}>✓</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </button>
+        )}
 
         <div style={{ marginTop: 16, padding: '12px 14px', borderRadius: 12, background: C.warmGrayLight, fontFamily: fonts.body, fontSize: 12, color: C.textMuted, lineHeight: 1.5 }}>
           💡 We'll surface this in your <strong>Doctor Report</strong> so your physician can spot patterns over time.
@@ -194,7 +209,7 @@ function LogSymptomsScreen({ onClose, onDone }) {
       {/* Footer */}
       <div style={{ padding: '12px 16px 16px', borderTop: `1px solid ${C.border}`, background: C.white, flexShrink: 0 }}>
         <button
-          onClick={() => canSave && onDone({ mood, symptoms: picked, severity, note, linkedToMed })}
+          onClick={() => canSave && onDone({ mood, symptoms: picked, severity, note, linkedMed })}
           disabled={!canSave}
           style={{
             width: '100%', padding: '15px 0', borderRadius: 16, border: 'none',
@@ -343,9 +358,9 @@ function AddAppointmentScreen({ onClose, onDone }) {
           })}
         </div>
 
-        {/* Time */}
+        {/* Time — quick picks or an exact custom time */}
         <div style={{ fontFamily: fonts.body, fontSize: 13, fontWeight: 700, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>Time</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 22 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {specificTimes.map(t => {
             const on = time === t;
             return (
@@ -364,6 +379,31 @@ function AddAppointmentScreen({ onClose, onDone }) {
               >{t}</button>
             );
           })}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 22 }}>
+          <span style={{ fontFamily: fonts.body, fontSize: 13, color: C.textMuted }}>Or exact time:</span>
+          <input
+            type="time"
+            value={(() => {
+              const m = String(time || '').match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+              if (!m) return '';
+              let h = parseInt(m[1], 10) % 12;
+              if (m[3].toUpperCase() === 'PM') h += 12;
+              return String(h).padStart(2, '0') + ':' + m[2];
+            })()}
+            onChange={(e) => {
+              if (!e.target.value) return;
+              const [hh, mm] = e.target.value.split(':');
+              let h = parseInt(hh, 10);
+              const ap = h >= 12 ? 'PM' : 'AM';
+              h = h % 12 || 12;
+              setTime(h + ':' + mm + ' ' + ap);
+            }}
+            style={{ height: 44, padding: '0 12px', borderRadius: 12, border: `1.5px solid ${C.border}`, background: C.white, fontFamily: fonts.body, fontSize: 15, color: C.text, outline: 'none' }}
+          />
+          {time && !specificTimes.includes(time) && (
+            <span style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: C.coral }}>{time}</span>
+          )}
         </div>
 
         {/* Location */}
@@ -530,17 +570,6 @@ function UpcomingAppointmentCard({ appointment, onOpenReminder, onTap }) {
           {appointment.reminderLead === 'none' ? 'No reminder' : `Reminds ${REMINDER_LEAD_LABEL[appointment.reminderLead] || '1 day before'}`}
         </div>
       </div>
-      <button
-        onClick={(e) => { e.stopPropagation(); onOpenReminder && onOpenReminder(appointment); }}
-        style={{
-          padding: '8px 12px', borderRadius: 10,
-          background: accent, color: C.white, border: 'none',
-          fontFamily: fonts.body, fontSize: 12, fontWeight: 700,
-          cursor: 'pointer', flexShrink: 0,
-          boxShadow: `0 2px 8px ${accent}55`,
-        }}
-        aria-label="Preview reminder"
-      >Preview</button>
     </div>
   );
 }

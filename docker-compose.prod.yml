@@ -1,4 +1,4 @@
-# SaathiPill — production stack.
+# Arogya — production stack.
 #
 #   1. Copy .env.production.example → .env and fill in the values.
 #   2. Point your three domains (app / portal / api) at this server's IP.
@@ -38,7 +38,7 @@ services:
       CORS_ORIGINS: https://${APP_DOMAIN},https://${PORTAL_DOMAIN}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:?set VAPID_PUBLIC_KEY in .env}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:?set VAPID_PRIVATE_KEY in .env}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:care@saathipill.in}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:care@arogya.in}
       SMS_PROVIDER: ${SMS_PROVIDER:-}
       MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-}
     depends_on:
@@ -56,7 +56,7 @@ services:
       TZ: ${TZ:-Asia/Kolkata}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:care@saathipill.in}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:care@arogya.in}
     depends_on:
       postgres:
         condition: service_healthy
