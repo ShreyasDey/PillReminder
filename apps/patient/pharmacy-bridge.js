@@ -1,4 +1,4 @@
-// ── SaathiPill ⇄ Pharmacy Portal bridge (backend-aware) ──
+// ── Arogya ⇄ Pharmacy Portal bridge (backend-aware) ──
 //
 // Keeps the EXACT same synchronous surface the prototypes use
 // (read/add/update/subscribe, addDispense, adjustInventory, readInventoryAdjust)
@@ -180,6 +180,9 @@
   var _socket = null;
   function connectRealtime() {
     if (!API || !CFG.socketUrl) return;
+    // No signed-in identity → don't join any room. Prevents a logged-out browser
+    // from receiving another (or a former) account's realtime reminders.
+    if (!ls('sp_user_id') && !ls('spp_pharmacy_id')) { disconnectRealtime(); return; }
     function connect() {
       try {
         if (_socket) { try { _socket.disconnect(); } catch (e) {} _socket = null; }
@@ -221,6 +224,11 @@
     sc.onload = connect;
     document.head.appendChild(sc);
   }
+  // Drop the realtime socket — call on logout so no more reminders arrive.
+  function disconnectRealtime() {
+    if (_socket) { try { _socket.disconnect(); } catch (e) {} _socket = null; }
+  }
   window.PharmacyBridge.connectRealtime = connectRealtime;
+  window.PharmacyBridge.disconnectRealtime = disconnectRealtime;
   connectRealtime();
 })();

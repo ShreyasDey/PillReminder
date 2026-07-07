@@ -1,4 +1,4 @@
-// ── SaathiPill Pharmacy Portal — Patients, Refills, Inventory, Analytics ──
+// ── Arogya Pharmacy Portal — Patients, Refills, Inventory, Analytics ──
 
 // ── Mini sparkline ──
 function Sparkline({ points, color = C.navy, width = 100, height = 28 }) {
@@ -387,8 +387,8 @@ function PatientDetailScreen({ patientId, onNavigate, onAction }) {
               <Button variant="coral" size="lg" full icon={<span style={{ fontSize: 14 }}>📲</span>} onClick={() => onAction('prescribe', patient)}>
                 Add medicine to app
               </Button>
-              <Button variant="success" size="lg" full icon={<span style={{ fontSize: 14 }}>✉</span>} onClick={() => onAction('sms', patient)}>
-                Send SMS
+              <Button variant="success" size="lg" full icon={<span style={{ fontSize: 14 }}>🟢</span>} onClick={() => onAction('sms', patient)}>
+                Send WhatsApp
               </Button>
               <Button variant="primary" size="lg" full icon={<span style={{ fontSize: 14, lineHeight: 0 }}>+</span>} onClick={() => onAction('refill', patient)}>
                 Prepare refill
@@ -684,7 +684,7 @@ function RefillCard({ refill, patient, onConfirm, onReady, onCollect, onAction }
           )}
           {refill.status === 'confirmed' && (
             <>
-              <Button variant="ghost" size="sm" onClick={() => onAction('sms', p)}>SMS</Button>
+              <Button variant="ghost" size="sm" onClick={() => onAction('sms', p)}>WhatsApp</Button>
               <Button variant="primary" size="sm" onClick={onReady}>Mark ready</Button>
             </>
           )}
@@ -755,6 +755,24 @@ function InventoryScreen() {
 
   const statusCount = (s) => INVENTORY.filter(i => effStatus(i) === s).length;
 
+  // Real CSV export of the live stock list (what's on screen, current values).
+  const exportCsv = () => {
+    const esc = (v) => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+    const rows = [
+      ['Medicine', 'Current stock', 'Demand (7d)', 'Suggested order', 'MRP (₹)', 'Supplier', 'Status'],
+      ...INVENTORY.map(i => [
+        i.name, effStock(i), i.demand7d, i.suggestedOrder || 0,
+        (i.mrp || 0).toFixed(2), i.supplier || '', effStatus(i).replace(/-/g, ' '),
+      ]),
+    ];
+    const csv = rows.map(r => r.map(esc).join(',')).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'stock-list-' + new Date().toISOString().slice(0, 10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
   return (
     <div>
       <PageHeader
@@ -762,7 +780,7 @@ function InventoryScreen() {
         subtitle={`${INVENTORY.length} SKUs tracked · Demand forecast learned from the last 28 days of sales`}
         right={
           <div style={{ display: 'flex', gap: 8 }}>
-            <Button variant="ghost" size="md" icon={<span>⇩</span>}>Export stock list</Button>
+            <Button variant="ghost" size="md" icon={<span>⇩</span>} onClick={exportCsv}>Export stock list</Button>
             <Button variant="coral" size="md" icon={<span style={{ fontSize: 16, lineHeight: 0 }}>+</span>} onClick={() => setStockModal({ mode: 'new' })}>Add medicine</Button>
           </div>
         }
@@ -950,7 +968,9 @@ function InventoryRow({ item, onAdd, onOrder, flash, activeOffer }) {
     'out-of-stock': { bg: C.redSoft, fg: C.red, label: 'Out of stock' },
   };
   const s = statusMap[item.status];
-  const daysLeft = item.demand7d > 0 ? Math.round((item.stock / item.demand7d) * 7) : 99;
+  // No demand history yet → we can't estimate how long stock lasts; show "—"
+  // instead of inventing a number.
+  const daysLeft = item.demand7d > 0 ? Math.round((item.stock / item.demand7d) * 7) : null;
   // Suggested reorder qty to reach ~2 weeks of cover. Backend supplies this in API
   // mode; fall back to the same formula client-side so demo mode matches.
   const COVER_DAYS = 14;
@@ -965,10 +985,12 @@ function InventoryRow({ item, onAdd, onOrder, flash, activeOffer }) {
       <Td align="right"><span style={{ fontWeight: 800, fontSize: 15, color: item.status === 'out-of-stock' ? C.red : C.navy }}>{item.stock}</span></Td>
       <Td align="right"><span style={{ fontWeight: 600, color: C.textMid }}>{item.demand7d}</span></Td>
       <Td align="right">
-        <span style={{
-          fontWeight: 700, fontSize: 13,
-          color: daysLeft < 7 ? C.red : daysLeft < 14 ? '#8A6418' : C.sage,
-        }}>{daysLeft > 30 ? '30+' : daysLeft} days</span>
+        {daysLeft == null
+          ? <span style={{ color: C.textMuted, fontSize: 12 }}>—</span>
+          : <span style={{
+              fontWeight: 700, fontSize: 13,
+              color: daysLeft < 7 ? C.red : daysLeft < 14 ? '#8A6418' : C.sage,
+            }}>{daysLeft > 30 ? '30+' : daysLeft} days</span>}
       </Td>
       <Td align="right">
         {suggested > 0
@@ -1495,7 +1517,7 @@ function ProfileSetupScreen() {
               </div>
               {live ? (
                 <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.6 }}>
-                  Your name and login phone come from your SaathiPill account.
+                  Your name and login phone come from your Arogya account.
                 </div>
               ) : (
                 <>
@@ -1553,7 +1575,7 @@ function ProfileSetupScreen() {
             />
             <div style={{ padding: 20 }}>
               <div style={{ fontSize: 12, color: C.textMid, marginBottom: 14, lineHeight: 1.6 }}>
-                Patients enter this 9-character code in the <strong style={{ color: C.text }}>SaathiPill app → My Pharmacy</strong> to link to your store. All their prescriptions and refills will route to you automatically.
+                Patients enter this 9-character code in the <strong style={{ color: C.text }}>Arogya app → My Pharmacy</strong> to link to your store. All their prescriptions and refills will route to you automatically.
               </div>
               <PharmacyCodeInput value={pharmacyCode} onChange={setPharmacyCode} />
               {isCodeValid && (
@@ -1690,7 +1712,7 @@ function PharmacyJoinQR({ code, pharmacyName }) {
     <div style={{ marginTop: 18, paddingTop: 18, borderTop: `1px solid ${C.borderSoft}` }}>
       <div style={{ fontSize: 12, fontWeight: 700, color: C.text, marginBottom: 4 }}>📱 Counter QR — patients scan to join</div>
       <div style={{ fontSize: 12, color: C.textMid, lineHeight: 1.6, marginBottom: 12 }}>
-        Print this at your counter. Scanning opens the SaathiPill app, sets up the patient's account
+        Print this at your counter. Scanning opens the Arogya app, sets up the patient's account
         and links them to <strong style={{ color: C.text }}>{pharmacyName || 'your pharmacy'}</strong> automatically — no code typing.
       </div>
       {qrAvailable ? (
@@ -1777,7 +1799,7 @@ function PharmacyPartnerScreen() {
     <div>
       <PageHeader
         title="Pharmacy partner codes"
-        subtitle="Manage the codes patients use to link to your pharmacy in the SaathiPill app"
+        subtitle="Manage the codes patients use to link to your pharmacy in the Arogya app"
         right={!live && (
           <Button variant="coral" size="md" icon={<span style={{ fontSize: 16 }}>+</span>}
             onClick={() => { setAddingBranch(true); }}>
@@ -1871,7 +1893,7 @@ function PharmacyPartnerScreen() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
               {[
                 { n: '1', label: 'Share the code', detail: 'Hand it out at the counter, print on receipts, or send via SMS' },
-                { n: '2', label: 'Patient enters code', detail: 'SaathiPill app → Settings → My Pharmacy → Enter 9-char code' },
+                { n: '2', label: 'Patient enters code', detail: 'Arogya app → Settings → My Pharmacy → Enter 9-char code' },
                 { n: '3', label: 'Instant sync', detail: 'Prescriptions, reminders and refills auto-route to your pharmacy' },
               ].map(s => (
                 <div key={s.n} style={{ display: 'flex', gap: 10 }}>
@@ -2147,7 +2169,7 @@ function OffersScreen() {
     <div>
       <PageHeader
         title="Offers & Promotions"
-        subtitle={`Broadcast discounts to all ${patientCount} linked patients · They see it instantly in SaathiPill`}
+        subtitle={`Broadcast discounts to all ${patientCount} linked patients · They see it instantly in Arogya`}
         right={
           activeOffer ? (
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -2208,7 +2230,7 @@ function OffersScreen() {
                 </div>
               </div>
               <div style={{ padding: '12px 22px', background: 'rgba(0,0,0,0.25)', borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 500 }}>
-                Created {new Date(activeOffer.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · Visible to all patients in SaathiPill app
+                Created {new Date(activeOffer.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} · Visible to all patients in Arogya app
               </div>
             </div>
           )}
@@ -2346,7 +2368,7 @@ function OffersScreen() {
             <div style={{ padding: '14px 18px', display: 'flex', flexDirection: 'column', gap: 14 }}>
               {[
                 { step: '1', color: C.coral, title: 'Set & activate', desc: 'Choose your discount %, label and expiry date. Hit Activate.' },
-                { step: '2', color: C.navy, title: 'Instant push to patients', desc: 'A notification banner appears on the Refills tab of all linked patients in SaathiPill.' },
+                { step: '2', color: C.navy, title: 'Instant push to patients', desc: 'A notification banner appears on the Refills tab of all linked patients in Arogya.' },
                 { step: '3', color: C.sage, title: 'Prices update automatically', desc: 'Your inventory view and all refill order totals reflect the discounted pricing.' },
                 { step: '4', color: C.amber, title: 'Deactivate any time', desc: 'The banner disappears for patients immediately when you deactivate.' },
               ].map(s => (

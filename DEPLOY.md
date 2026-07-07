@@ -1,12 +1,12 @@
-# Deploying SaathiPill as real websites
+# Deploying Arogya as real websites
 
 This guide takes you from nothing to three live, HTTPS websites:
 
 | What | Example address |
 |------|-----------------|
-| Patient app | `https://app.saathipill.in` |
-| Pharmacy portal | `https://portal.saathipill.in` |
-| Backend API | `https://api.saathipill.in` |
+| Patient app | `https://app.arogya.in` |
+| Pharmacy portal | `https://portal.arogya.in` |
+| Backend API | `https://api.arogya.in` |
 
 Everything (database, API, background worker, both websites, and automatic HTTPS
 certificates) runs from **one server** with **one command**. You do not need to
@@ -18,7 +18,7 @@ edit any code.
 
 1. **A server** with a public IP address running Linux — any cheap cloud VM works
    (DigitalOcean, AWS Lightsail, Hetzner, Azure…). 2 GB RAM is plenty.
-2. **A domain name** (e.g. `saathipill.in`) that you can add DNS records to.
+2. **A domain name** (e.g. `arogya.in`) that you can add DNS records to.
 3. **Docker** installed on the server (Docker Engine + the Compose plugin).
 
 ---
@@ -29,9 +29,9 @@ In your domain provider's DNS settings, add three **A records**, all pointing to
 your server's public IP address:
 
 ```
-app.saathipill.in      →  <your server IP>
-portal.saathipill.in   →  <your server IP>
-api.saathipill.in      →  <your server IP>
+app.arogya.in      →  <your server IP>
+portal.arogya.in   →  <your server IP>
+api.arogya.in      →  <your server IP>
 ```
 
 DNS can take a few minutes to an hour to take effect.
@@ -89,8 +89,8 @@ Check they're running:
 docker compose -f docker-compose.prod.yml ps
 ```
 
-Visit `https://portal.saathipill.in` — you'll be asked to register your pharmacy.
-Visit `https://app.saathipill.in` — a patient can sign up with their phone.
+Visit `https://portal.arogya.in` — you'll be asked to register your pharmacy.
+Visit `https://app.arogya.in` — a patient can sign up with their phone.
 
 ---
 

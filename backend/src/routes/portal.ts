@@ -218,7 +218,7 @@ export default async function portalRoutes(app: FastifyInstance) {
 
     // Urgent attention.
     const urgent = [
-      ...atRisk.slice(0, 3).map((a) => ({ id: `risk-${a.id}`, patientId: a.id, kind: "adherence-dip", title: `Adherence at ${a.adherence}% — ${a.name}`, detail: "Below 70% over last 30 days", tag: a.adherence! < 50 ? "SWITCH RISK" : "ADHERENCE", tagColor: a.adherence! < 50 ? "red" : "amber", action: "Send SMS" })),
+      ...atRisk.slice(0, 3).map((a) => ({ id: `risk-${a.id}`, patientId: a.id, kind: "adherence-dip", title: `Adherence at ${a.adherence}% — ${a.name}`, detail: "Below 70% over last 30 days", tag: a.adherence! < 50 ? "SWITCH RISK" : "ADHERENCE", tagColor: a.adherence! < 50 ? "red" : "amber", action: "Send WhatsApp" })),
       ...pendingRefills.slice(0, 2).map((r) => ({ id: `ord-${r.id}`, patientId: r.patientId, kind: "pending-order", title: `Refill ₹${Math.round(r.amount / 100)} awaiting confirmation`, detail: `${r.patient.name} · ${rel(r.placedAt)}`, tag: "PENDING", tagColor: "amber", action: "Confirm order" })),
       ...lowStock.slice(0, 2).map((i) => {
         const sug = suggestedOrderQty(i.stock, i.demand7d);

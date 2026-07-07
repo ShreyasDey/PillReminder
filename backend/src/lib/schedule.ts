@@ -122,15 +122,31 @@ export function adherencePct(doses: DoseForAdherence[]): number | null {
 
 export interface DatedDose extends DoseForAdherence {
   date: string; // YYYY-MM-DD
+  scheduledTime?: string; // "8:00 AM" — needed to detect late takes
+  takenAt?: Date | null;
 }
 
 export interface DayAdherence {
   date: string;
   taken: number;
+  late: number; // of `taken`, how many were marked >5 min after their scheduled time
   missed: number;
   skipped: number;
   counted: number; // taken + missed + non-excluded skips
   pct: number | null;
+}
+
+// Grace period before a taken dose counts as "late" — matches the patient app's
+// "Taken late by…" tag so both surfaces agree.
+const LATE_GRACE_MIN = 5;
+
+/** Was this taken dose marked more than the grace period after its scheduled time? */
+function isLate(d: DatedDose): boolean {
+  if (d.status !== "taken" || !d.takenAt || !d.scheduledTime) return false;
+  const sched = new Date(`${d.date}T00:00:00`);
+  if (isNaN(sched.getTime())) return false;
+  sched.setMinutes(sched.getMinutes() + timeToMinutes(d.scheduledTime));
+  return new Date(d.takenAt).getTime() - sched.getTime() > LATE_GRACE_MIN * 60_000;
 }
 
 /**
@@ -149,12 +165,14 @@ export function dailyAdherenceSeries(doses: DatedDose[]): DayAdherence[] {
     .sort((a, b) => (a[0] < b[0] ? -1 : 1))
     .map(([date, list]) => {
       const taken = list.filter((x) => x.status === "taken").length;
+      const late = list.filter(isLate).length;
       const missed = list.filter((x) => x.status === "missed").length;
       const skipped = list.filter((x) => x.status === "skipped" && !x.skipExcluded).length;
       const counted = taken + missed + skipped;
       return {
         date,
         taken,
+        late,
         missed,
         skipped,
         counted,

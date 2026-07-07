@@ -1,4 +1,4 @@
-/* SaathiPill service worker — delivers medication reminders via Web Push, even
+/* Arogya service worker — delivers medication reminders via Web Push, even
    when the app tab is closed. Reminder actions open the app to mark the dose. */
 
 self.addEventListener('install', function () {
@@ -10,8 +10,8 @@ self.addEventListener('activate', function (event) {
 
 self.addEventListener('push', function (event) {
   var payload = {};
-  try { payload = event.data ? event.data.json() : {}; } catch (e) { payload = { title: 'SaathiPill', body: event.data && event.data.text() }; }
-  var title = payload.title || 'SaathiPill reminder';
+  try { payload = event.data ? event.data.json() : {}; } catch (e) { payload = { title: 'Arogya', body: event.data && event.data.text() }; }
+  var title = payload.title || 'Arogya reminder';
   var options = {
     body: payload.body || '',
     tag: payload.tag || undefined,            // a new reminder for the same dose replaces the old one

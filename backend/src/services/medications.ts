@@ -26,6 +26,7 @@ export interface MedPayload {
   courseType?: "ongoing" | "fixed";
   courseDays?: number | null;
   instructions?: string | null;
+  doctor?: string | null; // prescribing doctor, e.g. "Dr. Mehta"
   source?: { type: string; name: string; code: string } | null;
 }
 
@@ -85,6 +86,7 @@ export async function addMedicationForPatient(patientId: string, med: MedPayload
           courseEndDate,
           refillDueAt,
           instructions: med.instructions || null,
+          doctor: med.doctor || null,
           source: med.source ?? undefined,
         },
       }),

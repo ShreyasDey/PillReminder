@@ -1,4 +1,4 @@
-# Static web server for the SaathiPill pharmacy portal.
+# Static web server for the Arogya pharmacy portal.
 # The app is plain HTML/JSX (transpiled in-browser), so no build step is needed —
 # nginx just serves the files. env.js is regenerated at container start from
 # environment variables so the SAME image runs on any domain.

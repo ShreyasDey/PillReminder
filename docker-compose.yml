@@ -26,7 +26,7 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:5174}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-BKvCKHiHFe2odTjOtCE62Zu_C3qaegPN2RofKS-BL2XQBow8gMIeF6nBR7-4qicCpvlTQ_sxKYRKd5ngdv1ITpU}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-u0krV1zvLYRGLBvDaEUwObA8QnfOQwtoaUJNvYgKK8I}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:care@saathipill.in}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:care@arogya.in}
     ports:
       - "3000:3000"
     depends_on:
@@ -44,7 +44,7 @@ services:
       TZ: ${TZ:-Asia/Kolkata}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-BKvCKHiHFe2odTjOtCE62Zu_C3qaegPN2RofKS-BL2XQBow8gMIeF6nBR7-4qicCpvlTQ_sxKYRKd5ngdv1ITpU}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-u0krV1zvLYRGLBvDaEUwObA8QnfOQwtoaUJNvYgKK8I}
-      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:care@saathipill.in}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:care@arogya.in}
     depends_on:
       postgres:
         condition: service_healthy

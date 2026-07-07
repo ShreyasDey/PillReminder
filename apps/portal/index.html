@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>SaathiPill — Pharmacy Partner Portal</title>
+<title>Arogya — Pharmacy Partner Portal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
@@ -116,9 +116,9 @@ function Sidebar({ active, onNavigate }) {
             background: C.coral, color: '#fff',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontWeight: 800, fontSize: 18, letterSpacing: '-0.02em',
-          }}>S</div>
+          }}>A</div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>SaathiPill</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#fff', letterSpacing: '-0.01em' }}>Arogya</div>
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Pharmacy Portal</div>
           </div>
         </div>
@@ -195,7 +195,7 @@ function Sidebar({ active, onNavigate }) {
           <span>Settings</span>
           <span style={{ fontWeight: 700 }}>⚙</span>
         </div>
-        <button onClick={() => { if (window.PortalAPI) PortalAPI.logout(); window.location.reload(); }} style={{
+        <button onClick={async () => { try { if (window.PortalAPI) await PortalAPI.logout(); } catch (e) {} window.location.reload(); }} style={{
           width: '100%', marginTop: 12, padding: '8px 0', borderRadius: 6,
           border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.06)',
           color: 'rgba(255,255,255,0.85)', fontFamily: 'inherit', fontSize: 12, fontWeight: 700, cursor: 'pointer',
@@ -448,32 +448,43 @@ function Modal({ open, onClose, title, subtitle, children, width = 520 }) {
 }
 
 function SmsModal({ patient, onClose, onSend }) {
+  const first = patient?.name?.split(' ')[0] || 'Sir/Madam';
+  const pharmacyName = (window.PHARMACY && window.PHARMACY.name) || 'your pharmacy';
+  // Each template writes a real message into the box (editable before sending).
   const templates = [
-    'Reminder: refill due',
-    'Adherence check-in',
-    'Order ready for pickup',
-    'New refill confirmed',
-    'Custom message',
+    { label: 'Refill due', body: `Namaste ${first} ji,\n\nYour medicine refill is due soon. Should I prepare it for pickup?\n\nRegards,\n${pharmacyName}` },
+    { label: 'Adherence check-in', body: `Namaste ${first} ji,\n\nJust checking in — are you taking your medicines regularly? Let us know if you have any trouble or side effects.\n\nRegards,\n${pharmacyName}` },
+    { label: 'Order ready for pickup', body: `Namaste ${first} ji,\n\nYour order is ready for pickup at ${pharmacyName}. Please collect it at your convenience and pay at the counter.\n\nRegards,\n${pharmacyName}` },
+    { label: 'Custom message', body: `Namaste ${first} ji,\n\n\n\nRegards,\n${pharmacyName}` },
   ];
   const [template, setTemplate] = useState(0);
-  const [message, setMessage] = useState(
-    `Namaste ${patient?.name?.split(' ')[0] || 'Sir/Madam'} ji,\n\nYour refill is due in 2 days. Should I prepare it for pickup or home delivery?\n\nRegards,\nSharma Medical Store`
-  );
+  const [message, setMessage] = useState(templates[0].body);
+
+  // WhatsApp click-to-chat: opens WhatsApp (app or web) with the chat and
+  // message prefilled — the pharmacist just presses send. Works without any
+  // WhatsApp Business API account.
+  const waDigits = '91' + String(patient?.phone || '').replace(/\D/g, '').slice(-10);
+  const canWhatsApp = String(patient?.phone || '').replace(/\D/g, '').length >= 10;
+  const openWhatsApp = () => {
+    window.open('https://wa.me/' + waDigits + '?text=' + encodeURIComponent(message), '_blank', 'noopener');
+    onSend(message); // also deliver a copy into the patient's Arogya app
+  };
+
   return (
-    <Modal open={!!patient} onClose={onClose} title={`SMS · ${patient?.name || ''}`} subtitle={patient?.phone} width={560}>
+    <Modal open={!!patient} onClose={onClose} title={`WhatsApp · ${patient?.name || ''}`} subtitle={patient?.phone} width={560}>
       <div style={{ padding: 22 }}>
         <div style={{ marginBottom: 14 }}>
           <Label>Template</Label>
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
             {templates.map((t, i) => (
-              <button key={t} onClick={() => setTemplate(i)} style={{
+              <button key={t.label} onClick={() => { setTemplate(i); setMessage(t.body); }} style={{
                 padding: '6px 10px', borderRadius: 4,
                 border: `1px solid ${template === i ? C.navy : C.border}`,
                 background: template === i ? C.navy : C.white,
                 color: template === i ? '#fff' : C.text,
                 fontFamily: fonts.body, fontSize: 12, fontWeight: 600,
                 cursor: 'pointer',
-              }}>{t}</button>
+              }}>{t.label}</button>
             ))}
           </div>
         </div>
@@ -490,12 +501,12 @@ function SmsModal({ patient, onClose, onSend }) {
           marginTop: 14, padding: 12, background: C.creamWarm, borderRadius: 6,
           fontSize: 11, color: C.textMid, fontWeight: 500, lineHeight: 1.5,
         }}>
-          <strong style={{ color: C.text }}>Delivered to:</strong> {patient?.name}'s SaathiPill app (notification + phone push){patient?.phone ? ` · SMS to ${patient.phone} when the SMS gateway is enabled` : ''}.
+          <strong style={{ color: C.text }}>How it sends:</strong> WhatsApp opens with this message ready for {patient?.phone || 'the patient'} — press send there. A copy is also delivered to {patient?.name?.split(' ')[0] || 'the patient'}'s Arogya app instantly.
         </div>
       </div>
       <div style={{ padding: '14px 22px', borderTop: `1px solid ${C.border}`, display: 'flex', justifyContent: 'flex-end', gap: 8, background: C.cream }}>
         <Button variant="ghost" onClick={onClose}>Cancel</Button>
-        <Button variant="success" onClick={() => onSend(message)} icon={<span>✉</span>}>Send message</Button>
+        <Button variant="success" onClick={openWhatsApp} disabled={!canWhatsApp} icon={<span>🟢</span>}>Send via WhatsApp</Button>
       </div>
     </Modal>
   );
@@ -591,7 +602,7 @@ function GenericModal({ kind, patient, onClose }) {
 
 // ── Prescribe-to-app modal ──
 // Lets the pharmacist build a prescription and push it straight into the
-// patient's SaathiPill app, where it appears in their daily reminders.
+// patient's Arogya app, where it appears in their daily reminders.
 const TIME_SLOTS = [
   { id: 'morning', label: 'Morning', icon: '☀️' },
   { id: 'afternoon', label: 'Afternoon', icon: '🌤️' },
@@ -842,7 +853,7 @@ function PrescribeModal({ patient, onClose, onSent }) {
   return (
     <Modal open={!!patient} onClose={onClose}
       title={`Add medicine to ${patient.name}'s app`}
-      subtitle="Pushes straight into their SaathiPill reminders — they're notified instantly"
+      subtitle="Pushes straight into their Arogya reminders — they're notified instantly"
       width={620}>
       <datalist id="rx-med-list">
         {INVENTORY.map(i => <option key={i.name} value={i.name} />)}
@@ -957,7 +968,7 @@ function NewRefillModal({ onClose, onDone }) {
       <div style={{ padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* Patient */}
         <div>
-          <div style={rxFieldLabel}>Patient (registered in SaathiPill)</div>
+          <div style={rxFieldLabel}>Patient (registered in Arogya)</div>
           <select value={patientId} onChange={e => setPatientId(e.target.value)} style={{ ...rxInput, cursor: 'pointer' }}>
             <option value="">Select a patient…</option>
             {PATIENTS.map(p => <option key={p.id} value={p.id}>{p.name} · {p.age} · {p.conditions.join(', ')}</option>)}
@@ -1294,10 +1305,10 @@ function App() {
         setSmsPatient(null);
         if (window.PortalAPI && PortalAPI.enabled && p && p.id) {
           PortalAPI.sendSms(p.id, message)
-            .then(() => setToast({ msg: `Message delivered to ${p.name}'s app`, kind: 'success' }))
-            .catch((e) => setToast({ msg: 'Could not send: ' + e.message, kind: 'error' }));
+            .then(() => setToast({ msg: `WhatsApp opened — a copy was also delivered to ${p.name}'s app`, kind: 'success' }))
+            .catch((e) => setToast({ msg: 'WhatsApp opened, but the in-app copy failed: ' + e.message, kind: 'error' }));
         } else {
-          setToast({ msg: 'Demo mode — message not really sent', kind: 'info' });
+          setToast({ msg: 'WhatsApp opened (demo mode — no in-app copy)', kind: 'info' });
         }
       }} />
       <DeclineModal patient={declinePatient} onClose={() => { setDeclinePatient(null); setDeclineRefill(null); }} onConfirm={(reason) => {
@@ -1308,7 +1319,7 @@ function App() {
         setToast({ msg: 'Order declined — patient notified', kind: 'success' });
       }} />
       {genericModal && <GenericModal kind={genericModal.kind} patient={genericModal.patient} onClose={() => setGenericModal(null)} />}
-      {prescribePatient && <PrescribeModal patient={prescribePatient} onClose={() => setPrescribePatient(null)} onSent={(n) => { const name = prescribePatient.name.split(' ')[0]; setPrescribePatient(null); setToast({ msg: `${n} medicine${n > 1 ? 's' : ''} sent to ${name}'s SaathiPill app`, kind: 'success' }); }} />}
+      {prescribePatient && <PrescribeModal patient={prescribePatient} onClose={() => setPrescribePatient(null)} onSent={(n) => { const name = prescribePatient.name.split(' ')[0]; setPrescribePatient(null); setToast({ msg: `${n} medicine${n > 1 ? 's' : ''} sent to ${name}'s Arogya app`, kind: 'success' }); }} />}
       {newRefillOpen && <NewRefillModal onClose={() => setNewRefillOpen(false)} onDone={(patient, n, total) => { setNewRefillOpen(false); setToast({ msg: `Sale recorded for ${patient.name.split(' ')[0]} · ${inr(total)} · stock updated`, kind: 'success' }); }} />}
 
       {notifsOpen && (
@@ -1353,9 +1364,9 @@ function PortalLogin({ onAuthed }) {
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.navyDeep }}>
       <div style={{ width: 380, background: C.white, borderRadius: 12, padding: 32, boxShadow: '0 24px 60px rgba(0,0,0,0.3)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: C.coral, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 18 }}>S</div>
+          <div style={{ width: 36, height: 36, borderRadius: 8, background: C.coral, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 18 }}>A</div>
           <div>
-            <div style={{ fontSize: 16, fontWeight: 800, color: C.navy }}>SaathiPill</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: C.navy }}>Arogya</div>
             <div style={{ fontSize: 11, color: C.textMid, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pharmacy Portal</div>
           </div>
         </div>

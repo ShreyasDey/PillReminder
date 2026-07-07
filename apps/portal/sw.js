@@ -1,4 +1,4 @@
-/* SaathiPill Pharmacy Portal service worker — shows desktop notifications for
+/* Arogya Pharmacy Portal service worker — shows desktop notifications for
    restock reminders and new refill orders via Web Push, even when the portal
    tab is closed. Clicking focuses (or reopens) the portal. */
 
@@ -11,8 +11,8 @@ self.addEventListener('activate', function (event) {
 
 self.addEventListener('push', function (event) {
   var payload = {};
-  try { payload = event.data ? event.data.json() : {}; } catch (e) { payload = { title: 'SaathiPill Portal', body: event.data && event.data.text() }; }
-  var title = payload.title || 'SaathiPill Portal';
+  try { payload = event.data ? event.data.json() : {}; } catch (e) { payload = { title: 'Arogya Portal', body: event.data && event.data.text() }; }
+  var title = payload.title || 'Arogya Portal';
   var options = {
     body: payload.body || '',
     tag: payload.tag || undefined,

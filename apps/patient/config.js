@@ -1,4 +1,4 @@
-// SaathiPill — patient front-end configuration.
+// Arogya — patient front-end configuration.
 //
 // Works the same in local dev and in production without editing this file:
 //   • Local dev   → talks to http://localhost:3000 (backend on your machine).

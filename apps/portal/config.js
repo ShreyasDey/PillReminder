@@ -1,4 +1,4 @@
-// SaathiPill — pharmacy portal configuration.
+// Arogya — pharmacy portal configuration.
 //
 // Works the same in local dev and in production without editing this file:
 //   • Local dev   → talks to http://localhost:3000, patient app on :5173.

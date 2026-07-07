@@ -1,4 +1,4 @@
-// SaathiPill Pharmacy Portal — API client.
+// Arogya Pharmacy Portal — API client.
 // Active only when window.SAATHIPILL_CONFIG.apiUrl is set. Without it the portal
 // runs on local demo data exactly as before (`enabled` is false).
 //
@@ -108,7 +108,15 @@
       setSession(d);
       return d;
     },
-    logout: function () { clearSession(); },
+    logout: async function () {
+      var rt = refreshTok();
+      // Unsubscribe this browser's push + drop the realtime socket BEFORE clearing
+      // the session (both need the token / identity), then revoke it server-side.
+      try { if (window.PortalPush && PortalPush.disable) await PortalPush.disable(); } catch (e) {}
+      try { if (window.PharmacyBridge && PharmacyBridge.disconnectRealtime) PharmacyBridge.disconnectRealtime(); } catch (e) {}
+      try { if (rt) await req('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken: rt }) }); } catch (e) {}
+      clearSession();
+    },
 
     me: function () { return req('/portal/me'); },
     // Place search for manual location entry (used when GPS is denied at registration).

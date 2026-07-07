@@ -857,7 +857,7 @@ function InteractionsScreen({ onClose }) {
 
         {/* Disclaimer */}
         <div style={{ padding: '12px 14px', borderRadius: 12, background: C.warmGrayLight, fontFamily: fonts.body, fontSize: 11, color: C.textMuted, lineHeight: 1.6 }}>
-          <strong>Disclaimer:</strong> This is informational only — based on Indian pharmacology databases (CDSCO, IPC). Always confirm with your doctor before changing medication. SaathiPill does not provide medical advice.
+          <strong>Disclaimer:</strong> This is informational only — based on Indian pharmacology databases (CDSCO, IPC). Always confirm with your doctor before changing medication. Arogya does not provide medical advice.
         </div>
       </div>
     </div>
@@ -898,25 +898,28 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
   });
   const dayStatFor = (d) => {
     const e = _seriesByDay[d];
-    return { taken: e ? e.taken : 0, missed: e ? e.missed : 0, counted: e ? e.counted : 0 };
+    return { taken: e ? e.taken : 0, late: e ? (e.late || 0) : 0, missed: e ? e.missed : 0, counted: e ? e.counted : 0 };
   };
-  // sage = all taken · red = missed a dose · partial = today · none = no doses · future
+  // sage = all taken on time · amber = taken but ≥1 late · red = missed a dose
+  // partial = today · none = no doses · future
   const dayStatusFor = (d) => {
     if (d > _todayNum) return 'future';
     const st = dayStatFor(d);
     if (st.missed > 0) return 'red';
     if (d === _todayNum) return 'partial';
-    return st.counted > 0 ? 'sage' : 'none';
+    if (st.counted === 0) return 'none';
+    return st.late > 0 ? 'amber' : 'sage';
   };
 
   const statusMeta = {
-    sage:    { label: 'All medicines taken',   color: C.sage,      icon: '✓' },
-    red:     { label: 'Missed a dose',          color: C.red,       icon: '✗' },
-    partial: { label: 'In progress today',      color: C.coral,     icon: '•' },
-    none:    { label: 'No doses logged',        color: C.warmGray,  icon: '–' },
-    future:  { label: '',                       color: C.warmGray,  icon: '' },
+    sage:    { label: 'All medicines taken on time', color: C.sage,      icon: '✓' },
+    amber:   { label: 'Taken, but one or more late',  color: C.amber,     icon: '⏱' },
+    red:     { label: 'Missed a dose',                color: C.red,       icon: '✗' },
+    partial: { label: 'In progress today',            color: C.coral,     icon: '•' },
+    none:    { label: 'No doses logged',              color: C.warmGray,  icon: '–' },
+    future:  { label: '',                             color: C.warmGray,  icon: '' },
   };
-  const calColor = { sage: C.sage, red: C.red, partial: C.coral, none: C.warmGrayLight, future: C.warmGrayLight };
+  const calColor = { sage: C.sage, amber: C.amber, red: C.red, partial: C.coral, none: C.warmGrayLight, future: C.warmGrayLight };
 
   return (
     <div style={{ flex: 1, minHeight: 0, background: C.cream, display: 'flex', flexDirection: 'column', position: 'relative' }}>
@@ -939,7 +942,7 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
           {/* Report header */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, paddingBottom: 16, borderBottom: `1px solid ${C.border}` }}>
             <div>
-              <div style={{ fontFamily: fonts.heading, fontSize: 20, fontWeight: 800, color: C.coral, marginBottom: 2 }}>SaathiPill</div>
+              <div style={{ fontFamily: fonts.heading, fontSize: 20, fontWeight: 800, color: C.coral, marginBottom: 2 }}>Arogya</div>
               <div style={{ fontFamily: fonts.body, fontSize: 11, color: C.textMuted }}>Medication Adherence Report</div>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -1018,7 +1021,7 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
               })}
             </div>
             <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
-              {[[C.sage, 'All taken'], [C.red, 'Missed']].map(([c, l]) => (
+              {[[C.sage, 'All taken'], [C.amber, 'Taken late'], [C.red, 'Missed']].map(([c, l]) => (
                 <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   <div style={{ width: 10, height: 10, borderRadius: 2, background: c }} />
                   <span style={{ fontFamily: fonts.body, fontSize: 10, color: C.textMuted }}>{l}</span>
@@ -1073,7 +1076,7 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
                             <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.text, lineHeight: 1.4 }}>
                               {mm && <span style={{ marginRight: 4 }}>{mm.icon}</span>}
                               <strong>{symLine}</strong>
-                              {s.linkedToMed && <span style={{ color: C.textMuted }}> · linked to recent dose</span>}
+                              {s.linkedMed && <span style={{ color: C.textMuted }}> · linked to {s.linkedMed}</span>}
                             </div>
                             {s.note && (
                               <div style={{ fontFamily: fonts.body, fontSize: 11, color: C.textMuted, lineHeight: 1.4, marginTop: 3, fontStyle: 'italic' }}>"{s.note}"</div>
@@ -1087,7 +1090,7 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
                     })}
                   </div>
                   <div style={{ marginTop: 8, fontFamily: fonts.body, fontSize: 11, color: C.textMuted, lineHeight: 1.5 }}>
-                    Self-reported · {entries.length} {entries.length === 1 ? 'entry' : 'entries'} this period · No emergency symptoms
+                    Self-reported · {entries.length} {entries.length === 1 ? 'entry' : 'entries'} this period
                   </div>
                 </>
               );
@@ -1096,7 +1099,7 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
 
           {/* Footer */}
           <div style={{ padding: '12px 0 0', borderTop: `1px solid ${C.border}`, fontFamily: fonts.body, fontSize: 10, color: C.textMuted, lineHeight: 1.5 }}>
-            Generated by SaathiPill · Data is encrypted and private · For doctor use only
+            Generated by Arogya · Data is encrypted and private · For doctor use only
           </div>
         </div>
 
@@ -1190,9 +1193,10 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
               </div>
 
               {/* Real dose counts for the day */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
                 {[
                   { v: takenCount, l: 'Taken', c: C.sage },
+                  { v: st.late, l: 'Late', c: C.amber },
                   { v: missedCount, l: 'Missed', c: C.red },
                   { v: st.counted, l: 'Scheduled', c: C.textMuted },
                 ].map((s, i) => (
@@ -1237,7 +1241,9 @@ function DoctorReportScreen({ onClose, userName, userSymptoms, onLogSymptoms, us
                   ? 'Today is still in progress — some doses may not be marked yet.'
                   : missedCount > 0
                   ? `${missedCount} of ${st.counted} ${st.counted === 1 ? 'dose was' : 'doses were'} missed on this day.`
-                  : 'All scheduled doses were taken on this day.'}
+                  : st.late > 0
+                  ? `All doses were taken, but ${st.late} ${st.late === 1 ? 'was' : 'were'} taken late (more than 5 minutes after the scheduled time).`
+                  : 'All scheduled doses were taken on time on this day.'}
               </div>
             </div>
 
@@ -1259,7 +1265,6 @@ function ProfileScreen({ onNavigate, userName, onLogout }) {
       title: 'Reminders',
       items: [
         { icon: '🔔', label: 'Reminder settings', desc: 'Tone, snooze, escalation', arrow: true },
-        { icon: '🌙', label: 'Works on silent', desc: 'Always on', chip: 'Active' },
       ]
     },
     {
@@ -1292,7 +1297,7 @@ function ProfileScreen({ onNavigate, userName, onLogout }) {
           }}>👤</div>
           <div>
             <div style={{ fontFamily: fonts.heading, fontSize: 24, fontWeight: 800, color: C.white }}>{userName || 'Your profile'}</div>
-            <div style={{ fontFamily: fonts.body, fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>SaathiPill member</div>
+            <div style={{ fontFamily: fonts.body, fontSize: 14, color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>Arogya member</div>
           </div>
         </div>
       </div>
@@ -1346,7 +1351,7 @@ function ProfileScreen({ onNavigate, userName, onLogout }) {
           <div style={{ fontSize: 28, marginBottom: 8 }}>🔒</div>
           <div style={{ fontFamily: fonts.body, fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 6 }}>100% free. No ads. Works offline.</div>
           <div style={{ fontFamily: fonts.body, fontSize: 13, color: C.textMuted, lineHeight: 1.5 }}>
-            Your health data is encrypted and never sold. SaathiPill works even without internet — your reminders always fire.
+            Your health data is encrypted and never sold. Arogya works even without internet — your reminders always fire.
           </div>
         </Card>
 
@@ -1360,7 +1365,7 @@ function ProfileScreen({ onNavigate, userName, onLogout }) {
           <span style={{ fontSize: 17 }}>↩</span> Log out
         </button>
 
-        <div style={{ textAlign: 'center', fontFamily: fonts.body, fontSize: 12, color: C.textMuted }}>SaathiPill v1.0 · About · Privacy · Help</div>
+        <div style={{ textAlign: 'center', fontFamily: fonts.body, fontSize: 12, color: C.textMuted }}>Arogya v1.0 · About · Privacy · Help</div>
       </div>
     </div>
   );
@@ -1418,7 +1423,7 @@ function OfflineScreen({ onClose }) {
         textAlign: 'center', width: '100%',
       }}>
         <div style={{ fontFamily: fonts.body, fontSize: 14, color: C.text, lineHeight: 1.5 }}>
-          💡 SaathiPill is <strong>optimised for low-end Android phones</strong> and works on 2G/3G networks. Syncs automatically when connectivity returns.
+          💡 Arogya is <strong>optimised for low-end Android phones</strong> and works on 2G/3G networks. Syncs automatically when connectivity returns.
         </div>
       </div>
     </div>
@@ -1875,7 +1880,7 @@ function PharmacyBannerScreen({ onClose }) {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontFamily: fonts.body, fontSize: 15, fontWeight: 700, color: C.text }}>{browsePharmacy.name}</div>
                         <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted }}>{phMeta(browsePharmacy)}</div>
-                        <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, color: C.sage, marginTop: 3 }}>✓ Verified SaathiPill partner</div>
+                        <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, color: C.sage, marginTop: 3 }}>✓ Verified Arogya partner</div>
                       </div>
                     </div>
                   )}
@@ -1922,7 +1927,7 @@ function PharmacyBannerScreen({ onClose }) {
                       : isCodeValid && lookedUp ? '✓ Pharmacy found — confirm below to link'
                       : isCodeValid ? '⚠ Code not in our network — double-check with your pharmacist'
                       : codeInput.length > 0 ? 'Format: 4 chars · dash · 5 chars  (e.g. SHRM-74219)'
-                      : 'Ask your pharmacist for their SaathiPill code  (e.g. SHRM-74219)'}
+                      : 'Ask your pharmacist for their Arogya code  (e.g. SHRM-74219)'}
                   </div>
 
                   {isCodeValid && lookedUp && !alreadyLinked && (
@@ -1931,7 +1936,7 @@ function PharmacyBannerScreen({ onClose }) {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontFamily: fonts.body, fontSize: 15, fontWeight: 700, color: C.text }}>{lookedUp.name}</div>
                         <div style={{ fontFamily: fonts.body, fontSize: 13, color: C.textMuted }}>{phMeta(lookedUp)}</div>
-                        <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, color: C.sage, marginTop: 3 }}>✓ Verified SaathiPill partner</div>
+                        <div style={{ fontFamily: fonts.body, fontSize: 11, fontWeight: 700, color: C.sage, marginTop: 3 }}>✓ Verified Arogya partner</div>
                       </div>
                     </div>
                   )}
@@ -1957,7 +1962,7 @@ function PharmacyBannerScreen({ onClose }) {
                 {linkedPharmacies.length === 0 ? '🏥 Link a pharmacy' : 'Add another pharmacy'}
               </div>
               <div style={{ fontFamily: fonts.body, fontSize: 12, color: C.textMuted }}>
-                {linkedPharmacies.length === 0 ? 'Connect your local pharmacy via their SaathiPill code' : 'Link a backup or online pharmacy'}
+                {linkedPharmacies.length === 0 ? 'Connect your local pharmacy via their Arogya code' : 'Link a backup or online pharmacy'}
               </div>
             </div>
           </button>
